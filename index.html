@@ -183,9 +183,9 @@
     </main>
 
     <div class="doacao">
-        <p>Ajude a manter esta página online e sem propagandas.</p>
-        <p>Faça uma doação de qualquer valor!</p>
-        <p>Doe com segurança pelo PayPall</p>
+        <p>Este site foi útil para você? Considere fazer uma doação do valor de um cafezinho ao desenvolvedor! </p>  
+        <p>Sua doação ajuda a manter esta página online e sem propagandas.</p>
+        <p>VoCẽ pode doar com segurança pelo PayPall</p>
         <form action="https://www.paypal.com/donate" method="post" target="_blank">
             <input type="hidden" name="business" value="WFGYNTX4NEZ5A" />
             <input type="hidden" name="no_recurring" value="0" />
@@ -197,7 +197,7 @@
     </div>
     
 <div class="doacao">
-        <p>Doe pelo<strong>PIX</strong></p>
+ <p>Se preferir doe diretamente usando a chave <strong>PIX</strong> abaixo</p>
         <button class="copy-button" onclick="copyKey()">Copiar Chave PIX</button>
     </div>
 
@@ -206,7 +206,7 @@
             const key = "00020126710014br.gov.bcb.pix0118galdinoc@gmail.com0227Doacao site conversor ha hr5204000053039865802BR5925CONRADO ALEKSANDER BARBOS6014BELO HORIZONTE62170513Conversorhahr63048C86"; // Chave a ser copiada
             navigator.clipboard.writeText(key)
                 .then(() => {
-                    alert("Chave PIX copiada: " + key);
+                    alert("Chave PIX copiada! Basta colar o código copiado no app do seu banco!");
                 })
                 .catch(() => {
                     alert("Erro ao copiar a chave.");
