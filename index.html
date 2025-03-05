@@ -147,12 +147,17 @@
             main {
                 margin: 0 10px; /* Reduz a margem lateral em telas pequenas */
         }  
-       .buycoffe{
-        width: 100%; 
-        margin: 22px 5%;       
-        left: 20px;
-        top:165px;
-        right: 20px;
+         .copy-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .copy-button:hover {
+            background-color: #45a049;
         }
           }
     </style>
@@ -190,7 +195,24 @@
             <img alt="" border="0" src="https://www.paypal.com/pt_BR/i/scr/pixel.gif" width="1" height="1" />
         </form>
     </div>
+    
+<div class="container">
+        <p>Chave: <strong>813XT5</strong></p>
+        <button class="copy-button" onclick="copyKey()">Copiar Chave</button>
+    </div>
 
+    <script>
+        function copyKey() {
+            const key = "00020126710014br.gov.bcb.pix0118galdinoc@gmail.com0227Doacao site conversor ha hr5204000053039865802BR5925CONRADO ALEKSANDER BARBOS6014BELO HORIZONTE62170513Conversorhahr63048C86"; // Chave a ser copiada
+            navigator.clipboard.writeText(key)
+                .then(() => {
+                    alert("Chave PIX copiada: " + key);
+                })
+                .catch(() => {
+                    alert("Erro ao copiar a chave.");
+                });
+        }
+    </script>
       
     <button id="bookmarkButton" onclick="showInstructions()">Adicione a página aos seus favoritos</button>
     <script>
