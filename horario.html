@@ -45,7 +45,7 @@
             --pinned-border: #ffc107;
             --hover-bg: #e8f5e9;
             --delete-color: #ff5252;
-            --empty-bg: #ffffff;
+            --empty-bg: #003333;
         }
         
         body, html {
@@ -298,16 +298,58 @@
                 align-items: center;
             }
     .conflict-highlight {
-        background-color: #ffe0e0 !important; /* Vermelho claro */
-        color: black; /* Garante que o texto seja legível */
-        font-weight: bold;
-    }
+    background-color: #ffe0e0 !important; /* Light red background */
+    color: black !important; /* Ensures text remains readable */
+    font-weight: bold;
+    border-left: 3px solid #ff4444 !important; /* Red accent border */
+    animation: pulseConflict 2s infinite; /* Optional pulsing effect */
+    position: relative; /* Needed for the conflict badge */
+}
 
-    .conflict-highlight::after {
-        content: " CONFLITO";
-        font-size: 0.8em;
-        color: red;
-    }
+.conflict-highlight::after {
+    content: "CONFLITO";
+    font-size: 0.7em;
+    color: white;
+    background-color: #ff4444;
+    padding: 2px 5px;
+    border-radius: 3px;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Optional animation for extra attention */
+@keyframes pulseConflict {
+    0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.3); }
+    70% { box-shadow: 0 0 0 5px rgba(255, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+}
+
+/* Optional: Different style for pinned conflicts */
+.conflict-highlight.pinned {
+    border-left-color: #ff9900 !important;
+    background-color: #fff0e0 !important;
+}
+
+/* Optional: Tooltip with conflict details */
+.conflict-highlight:hover::before {
+    content: attr(data-conflict-details);
+    position: absolute;
+    width: 200px;
+    background: #ff4444;
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    z-index: 100;
+    bottom: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.9em;
+    font-weight: normal;
+    pointer-events: none;
+}
 }
         
     </style>
@@ -493,144 +535,34 @@ function initDragAndDrop(gridElement) {
         e.preventDefault();
         if (!draggedCell) return;
 
-        const target = e.target.closest('.cell:not(.header):not(.time-header):not(.dragging)');
+        const target = e.target.closest('.cell:not(.header):not(.time-header)');
         if (!target || target.classList.contains('pinned')) return;
 
-        const sourceScheduleIndex = parseInt(draggedCell.dataset.scheduleIndex);
-        const targetScheduleIndex = parseInt(target.dataset.scheduleIndex);
+        const sourceScheduleIndex = draggedCell.dataset.scheduleIndex;
+        const targetScheduleIndex = target.dataset.scheduleIndex;
 
-        if (sourceScheduleIndex !== targetScheduleIndex) return;
+        if (sourceScheduleIndex !== targetScheduleIndex) return; // Impede arrastar entre grades
 
-        const sourceRow = parseInt(draggedCell.dataset.row);
-        const sourceCol = parseInt(draggedCell.dataset.col);
-        const targetRow = parseInt(target.dataset.row);
-        const targetCol = parseInt(target.dataset.col);
+        const sourceRow = draggedCell.dataset.row;
+        const sourceCol = draggedCell.dataset.col;
+        const targetRow = target.dataset.row;
+        const targetCol = target.dataset.col;
 
-        const currentSchedule = schedules[sourceScheduleIndex];
-        const sourceClass = currentSchedule.scheduleData[sourceRow]?.classes[sourceCol];
-        const targetClass = currentSchedule.scheduleData[targetRow]?.classes[targetCol];
+        const currentScheduleData = schedules[sourceScheduleIndex].scheduleData;
+        const sourceClass = currentScheduleData[sourceRow]?.classes[sourceCol];
+        const targetClass = currentScheduleData[targetRow]?.classes[targetCol];
 
-        if (!sourceClass) {
-            draggedCell = null;
-            return;
+        if (sourceClass && targetClass) {
+            [currentScheduleData[sourceRow].classes[sourceCol], currentScheduleData[targetRow].classes[targetCol]] = [targetClass, sourceClass];
+            renderSchedules();
+        } else if (sourceClass && !targetClass) {
+            currentScheduleData[targetRow].classes[targetCol] = { ...sourceClass, id: `class-<span class="math-inline">\{targetRow\}\-</span>{targetCol}-${Date.now()}`, pinned: false };
+            currentScheduleData[sourceRow].classes[sourceCol] = null;
+            renderSchedules();
         }
 
-        // Only check for conflicts if the class has a professor
-        if (sourceClass.professor && sourceClass.professor.trim() !== '') {
-            // Check if target time slot has conflicting professor allocation
-            const conflicts = findTeacherConflicts(
-                sourceClass.professor, 
-                targetRow, 
-                targetCol, 
-                sourceScheduleIndex,
-                sourceClass.id
-            );
-
-            if (conflicts.length > 0) {
-                const conflictMessage = buildConflictMessage(sourceClass.professor, conflicts);
-                const proceed = confirm(conflictMessage);
-                if (!proceed) {
-                    draggedCell = null;
-                    return;
-                }
-            }
-        }
-
-        // Perform the actual drop operation
-        if (targetClass) {
-            // Swap classes
-            [currentSchedule.scheduleData[sourceRow].classes[sourceCol], 
-             currentSchedule.scheduleData[targetRow].classes[targetCol]] = 
-            [targetClass, sourceClass];
-        } else {
-            // Move to empty cell
-            currentSchedule.scheduleData[targetRow].classes[targetCol] = { 
-                ...sourceClass,
-                id: `class-${targetRow}-${targetCol}-${Date.now()}`,
-                pinned: false,
-                hasConflict: false // Reset conflict status
-            };
-            currentSchedule.scheduleData[sourceRow].classes[sourceCol] = null;
-        }
-
-        // Update conflict status for moved class
-        updateConflictsAfterDrop(sourceScheduleIndex, targetRow, targetCol);
-        renderSchedules();
         draggedCell = null;
     });
-}
-//
-function findTeacherConflicts(professor, targetRow, targetCol, currentScheduleIndex, currentClassId) {
-    const conflicts = [];
-    const professorName = professor.trim().toLowerCase();
-
-    schedules.forEach((schedule, scheduleIndex) => {
-        // Check the target time slot in all schedules
-        if (schedule.scheduleData[targetRow]?.classes[targetCol]) {
-            const targetClass = schedule.scheduleData[targetRow].classes[targetCol];
-            
-            if (targetClass && 
-                targetClass.professor && 
-                targetClass.professor.trim().toLowerCase() === professorName &&
-                targetClass.id !== currentClassId) {
-                
-                conflicts.push({
-                    scheduleName: schedule.name,
-                    day: config.days[targetCol],
-                    time: schedule.scheduleData[targetRow].time,
-                    className: targetClass.name
-                });
-            }
-        }
-    });
-
-    return conflicts;
-}
-
-// Helper function to build conflict message
-function buildConflictMessage(professor, conflicts) {
-    let message = `Professor ${professor} já está alocado em:\n\n`;
-    
-    conflicts.forEach(conflict => {
-        message += `- ${conflict.scheduleName}: ${conflict.day} às ${conflict.time} (${conflict.className})\n`;
-    });
-    
-    message += "\nDeseja mover a aula mesmo assim?";
-    return message;
-}
-
-// Update conflict status after drop
-function updateConflictsAfterDrop(scheduleIndex, row, col) {
-    const movedClass = schedules[scheduleIndex].scheduleData[row]?.classes[col];
-    if (!movedClass || !movedClass.professor) return;
-
-    const conflicts = findTeacherConflicts(
-        movedClass.professor,
-        row,
-        col,
-        scheduleIndex,
-        movedClass.id
-    );
-
-    movedClass.hasConflict = conflicts.length > 0;
-}
-
-// Remove all other conflict checking from edit functions
-function editClassName(classId, scheduleIndex) {
-    const cls = findClassById(classId, scheduleIndex);
-    if (!cls) return;
-
-    const newName = prompt('Nome da aula:', cls.name);
-    if (newName && newName.trim()) {
-        cls.name = newName.trim();
-        const professorName = prompt('Nome do professor (opcional):', cls.professor);
-        if (professorName !== null) {
-            cls.professor = professorName.trim();
-            // No automatic conflict checking here
-        }
-        if (colorMap[cls.name]) cls.color = colorMap[cls.name];
-        renderSchedules();
-    }
 }
 
 // Criar célula de cabeçalho
@@ -685,7 +617,7 @@ function createClassCell(cls, row, col, scheduleIndex) {
     cell.dataset.scheduleIndex = scheduleIndex;
     cell.style.backgroundColor = cls.color;
     cell.draggable = !cls.pinned;
-    cell.title = cls.professor ? `Professor: ${cls.professor}` : '';
+    cell.title = cls.professor; // Adicionando o atributo title com o nome do professor
     console.log(cls)
     cell.innerHTML = `
         <div class="cell-content">
@@ -723,6 +655,9 @@ function createClassCell(cls, row, col, scheduleIndex) {
         changeClassColor(cls.id, e.target.value, scheduleIndex);
     });
 
+    if (cls.hasConflict) {
+        cell.dataset.conflictDetails = `Professor ${cls.professor} em conflito`;
+    }
     if (!cls.pinned) {
         cell.addEventListener('dragstart', handleDragStart);
         cell.addEventListener('dragend', handleDragEnd);
@@ -754,11 +689,14 @@ function editTimeSlot(rowIndex, scheduleIndex) {
     renderSchedules();
 }
 
-// Editar nome da aula
 function editClassName(classId, scheduleIndex) {
     const cls = findClassById(classId, scheduleIndex);
     if (!cls) return;
 
+    const position = findClassPosition(classId, scheduleIndex);
+    if (!position) return;
+
+    const originalProfessor = cls.professor;
     const newName = prompt('Nome da aula:', cls.name);
     if (newName && newName.trim()) {
         cls.name = newName.trim();
@@ -767,16 +705,24 @@ function editClassName(classId, scheduleIndex) {
             cls.professor = professorName.trim();
         }
         if (colorMap[cls.name]) cls.color = colorMap[cls.name];
+
+        if (cls.professor && cls.professor !== originalProfessor) {
+            const tempClass = {
+                ...cls,
+                row: position.row,
+                col: position.col
+            };
+            const allowConflict = checkForTeacherConflict(tempClass, scheduleIndex);
+            cls.hasConflict = !allowConflict;
+            
+            if (!allowConflict) {
+                cls.professor = originalProfessor;
+            }
+        } else {
+            cls.hasConflict = false;
+        }
         renderSchedules();
     }
-}
-//checking conflicts when adding a new class
-function checkNewClassConflict(newClass, scheduleIndex, rowIndex, colIndex) {
-    if (!newClass.professor || newClass.professor.trim() === '') {
-        return true; // No professor, no conflict
-    }
-    
-    return checkForTeacherConflict(newClass, scheduleIndex, rowIndex, colIndex);
 }
 
 // Mudar cor da aula
@@ -833,11 +779,6 @@ function duplicateClass(classId, scheduleIndex) {
                     hasConflict: original.hasConflict // Copia o status de conflito
                 };
 
-                 if (newClass.professor) {
-                    newClass.hasConflict = !checkNewClassConflict(newClass, scheduleIndex, row, col);
-                }
-
-                currentScheduleData[row].classes[col] = newClass
                 duplicated = true;
                 break;
             }
@@ -866,71 +807,80 @@ function addTimeSlot(scheduleIndex) {
         id: `period-${currentScheduleData.length}`,
         time: `${newStart} - ${newEnd}`,
         classes: Array(config.days.length).fill().map((_, i) => ({
-            id: `class-${currentScheduleData.length}-${i}-${Date.now()}`,
+            id: `class-<span class="math-inline">\{currentScheduleData\.length\}\-</span>{i}-${Date.now()}`, // Correção no ID
             name: `Nova Aula`,
             pinned: false,
-            color: config.defaultColors[(currentScheduleData.length + i) % config.defaultColors.length],
-            professor: '',
-            hasConflict: false
+            color: config.defaultColors[(currentScheduleData.length + i) % config.defaultColors.length]
         }))
     });
 
     renderSchedules();
 }
+
+//helper function to find a class's position
+function findClassPosition(classId, scheduleIndex) {
+    if (scheduleIndex >= 0 && scheduleIndex < schedules.length) {
+        const currentSchedule = schedules[scheduleIndex].scheduleData;
+        for (let row = 0; row < currentSchedule.length; row++) {
+            for (let col = 0; col < currentSchedule[row].classes.length; col++) {
+                if (currentSchedule[row].classes[col]?.id === classId) {
+                    return { row, col };
+                }
+            }
+        }
+    }
+    return null;
+}
 //Checar conflito de horário na alocação do professor
-function checkForTeacherConflict(currentClass, currentScheduleIndex, currentRowIndex, currentColIndex) {
-    // If no professor assigned, no conflict possible
+function checkForTeacherConflict(currentClass, currentScheduleIndex) {
     if (!currentClass.professor || currentClass.professor.trim() === '') {
-        return true;
+        return true; // No conflict if no professor assigned
     }
 
-    const currentProfessor = currentClass.professor.trim().toLowerCase();
     let hasConflict = false;
     let conflictDetails = [];
 
-    // Check all schedules
-    schedules.forEach((schedule, scheduleIndex) => {
-        // Check all periods in the schedule
-        schedule.scheduleData.forEach((period, rowIndex) => {
-            // Check all classes in the period
-            period.classes.forEach((cls, colIndex) => {
-                if (cls && cls.professor && cls.professor.trim().toLowerCase() === currentProfessor) {
-                    // Skip the current class being edited
-                    if (scheduleIndex === currentScheduleIndex && 
-                        rowIndex === currentRowIndex && 
-                        colIndex === currentColIndex) {
-                        return;
-                    }
+    schedules.forEach((schedule, scheduleIdx) => {
+        // Skip if the current schedule doesn't have this time slot
+        if (!schedule.scheduleData[currentClass.row]?.classes[currentClass.col]) {
+            return;
+        }
 
-                    // Found a conflict
-                    hasConflict = true;
-                    conflictDetails.push({
-                        scheduleName: schedule.name,
-                        day: config.days[colIndex],
-                        time: period.time,
-                        className: cls.name
-                    });
-                }
+        const otherClass = schedule.scheduleData[currentClass.row].classes[currentClass.col];
+        if (otherClass && 
+            otherClass.professor && 
+            otherClass.professor.trim().toLowerCase() === currentClass.professor.trim().toLowerCase() &&
+            (scheduleIdx !== currentScheduleIndex || otherClass.id !== currentClass.id)) {
+            
+            const conflictTime = schedule.scheduleData[currentClass.row].time;
+            const conflictDay = config.days[currentClass.col];
+            hasConflict = true;
+            conflictDetails.push({
+                scheduleName: schedule.name,
+                day: conflictDay,
+                time: conflictTime,
+                className: otherClass.name
             });
-        });
+        }
     });
 
-    if (hasConflict) {
-        let conflictMessage = "Conflito de horário detectado para o professor:\n\n";
-        conflictMessage += `Professor: ${currentClass.professor}\n\n`;
-        conflictMessage += "Já está alocado nos seguintes horários:\n";
+    if (hasConflict) {
+        let conflictMessage = "Conflito de horário detectado!\n";
+        conflictMessage += `Professor: ${currentClass.professor}\n`;
+        conflictMessage += `Horário: ${schedules[currentScheduleIndex].scheduleData[currentClass.row].time}\n`;
+        conflictMessage += `Dia: ${config.days[currentClass.col]}\n\n`;
+        conflictMessage += "Este professor já está alocado em:\n";
         
         conflictDetails.forEach(conflict => {
-            conflictMessage += `- ${conflict.scheduleName}: ${conflict.day} às ${conflict.time} (${conflict.className})\n`;
+            conflictMessage += `- ${conflict.scheduleName}: ${conflict.day} ${conflict.time} (${conflict.className})\n`;
         });
         
         conflictMessage += "\nDeseja continuar com a alocação mesmo assim?";
         return confirm(conflictMessage);
     }
 
-    return true; // No conflict found
+    return true;
 }
-
 // Reiniciar agenda atual
 function resetSchedule() {
     if (confirm("Tem certeza que deseja reiniciar a agenda atual?")) {
@@ -982,10 +932,9 @@ function findClassById(id, scheduleIndex) {
         row: parseInt(draggedElement.dataset.row),
         col: parseInt(draggedElement.dataset.col)
     };
-    
     draggedElement.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', draggedCell.id);
+    e.dataTransfer.setData('text/plain', '');
 }
 
     function handleDragEnd() {
@@ -993,15 +942,15 @@ function findClassById(id, scheduleIndex) {
         draggedCell = null;
     }
 
-    function initDragAndDrop(gridElement) {
-        if (!gridElement) return;
+function initDragAndDrop(gridElement) {
+    if (!gridElement) return;
 
-        gridElement.addEventListener('dragover', e => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        });
+    gridElement.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    });
 
-        gridElement.addEventListener('drop', e => {
+    gridElement.addEventListener('drop', e => {
         e.preventDefault();
         if (!draggedCell) return;
 
@@ -1012,119 +961,52 @@ function findClassById(id, scheduleIndex) {
         const targetRow = parseInt(target.dataset.row);
         const targetCol = parseInt(target.dataset.col);
 
-        // Verify we're working with the same schedule
-        if (draggedCell.scheduleIndex !== targetScheduleIndex) return;
-
-        // Get the class data
+        // Get source and target classes
         const sourceClass = findClassById(draggedCell.id, draggedCell.scheduleIndex);
+        const targetClass = findClassById(target.dataset.id, targetScheduleIndex);
+
         if (!sourceClass) return;
 
-        // Only check for conflicts if professor exists
+        // Check for conflicts if professor exists
         if (sourceClass.professor && sourceClass.professor.trim() !== '') {
-            // Find all classes in the target time slot across all schedules
-            const conflicts = [];
+            const tempClass = {
+                ...sourceClass,
+                row: targetRow,
+                col: targetCol
+            };
             
-            schedules.forEach((schedule, scheduleIdx) => {
-                const period = schedule.scheduleData[targetRow];
-                if (!period) return;
-                
-                const targetSlotClass = period.classes[targetCol];
-                if (targetSlotClass && 
-                    targetSlotClass.professor && 
-                    targetSlotClass.professor.trim().toLowerCase() === sourceClass.professor.trim().toLowerCase() &&
-                    targetSlotClass.id !== sourceClass.id) {
-                    
-                    conflicts.push({
-                        scheduleName: schedule.name,
-                        day: config.days[targetCol],
-                        time: period.time,
-                        className: targetSlotClass.name
-                    });
-                }
-            });
-
-            if (conflicts.length > 0) {
-                // Build conflict message
-                let conflictMessage = `CONFLITO: Professor ${sourceClass.professor} já está alocado em:\n\n`;
-                conflicts.forEach(conflict => {
-                    conflictMessage += `• ${conflict.scheduleName}: ${conflict.day} às ${conflict.time} (${conflict.className})\n`;
-                });
-                conflictMessage += "\nDeseja mover a aula mesmo assim?";
-                
-                // Show confirmation dialog
-                const proceed = confirm(conflictMessage);
-                if (!proceed) {
-                    draggedCell = null;
-                    return;
-                }
+            if (!checkForTeacherConflict(tempClass, targetScheduleIndex)) {
+                draggedCell = null;
+                document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
+                return;
             }
         }
 
-        // Perform the actual drop operation
-        const targetClass = schedules[targetScheduleIndex].scheduleData[targetRow].classes[targetCol];
-        
+        // Perform the move operation
+        const sourceSchedule = schedules[draggedCell.scheduleIndex];
+        const targetSchedule = schedules[targetScheduleIndex];
+
         if (targetClass) {
             // Swap classes
-            const temp = {...sourceClass};
-            schedules[draggedCell.scheduleIndex].scheduleData[draggedCell.row].classes[draggedCell.col] = targetClass;
-            schedules[targetScheduleIndex].scheduleData[targetRow].classes[targetCol] = temp;
+            [sourceSchedule.scheduleData[draggedCell.row].classes[draggedCell.col],
+             targetSchedule.scheduleData[targetRow].classes[targetCol]] = 
+            [targetClass, sourceClass];
         } else {
             // Move to empty cell
-            schedules[targetScheduleIndex].scheduleData[targetRow].classes[targetCol] = {...sourceClass};
-            schedules[draggedCell.scheduleIndex].scheduleData[draggedCell.row].classes[draggedCell.col] = null;
+            targetSchedule.scheduleData[targetRow].classes[targetCol] = {
+                ...sourceClass,
+                id: `class-${targetRow}-${targetCol}-${Date.now()}`,
+                pinned: false
+            };
+            sourceSchedule.scheduleData[draggedCell.row].classes[draggedCell.col] = null;
         }
 
-        // Update conflict status
-        updateAllConflicts();
         renderSchedules();
         draggedCell = null;
+        document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
     });
 }
-
-//function to update all conflicts
-function updateAllConflicts() {
-    // Clear all conflict flags first
-    schedules.forEach(schedule => {
-        schedule.scheduleData.forEach(period => {
-            period.classes.forEach(cls => {
-                if (cls) cls.hasConflict = false;
-            });
-        });
-    });
-
-    // Now check for actual conflicts
-    const professorMap = {};
-    
-    schedules.forEach((schedule, sIdx) => {
-        schedule.scheduleData.forEach((period, pIdx) => {
-            period.classes.forEach((cls, cIdx) => {
-                if (cls && cls.professor && cls.professor.trim() !== '') {
-                    const key = `${pIdx}-${cIdx}-${cls.professor.trim().toLowerCase()}`;
-                    
-                    if (!professorMap[key]) {
-                        professorMap[key] = [];
-                    }
-                    professorMap[key].push({
-                        scheduleIndex: sIdx,
-                        periodIndex: pIdx,
-                        classIndex: cIdx,
-                        class: cls
-                    });
-                    
-                    // If we have more than one class for this professor in the same time slot
-                    if (professorMap[key].length > 1) {
-                        professorMap[key].forEach(entry => {
-                            schedules[entry.scheduleIndex]
-                                .scheduleData[entry.periodIndex]
-                                .classes[entry.classIndex]
-                                .hasConflict = true;
-                        });
-                    }
-                }
-            });
-        });
-    });
-}
+        
 
 //##########################
 // Atualizar status
@@ -1199,9 +1081,6 @@ function init() {
     createNewSchedule(); // Cria a primeira grade ao carregar
     document.getElementById('add-schedule-btn').addEventListener('click', createNewSchedule);
     document.getElementById('reset-btn').addEventListener('click', resetSchedule);
-    
-    document.addEventListener('dragstart', handleDragStart);
-    document.addEventListener('dragend', handleDragEnd);
 }
 
 init();    
