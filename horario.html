@@ -46,6 +46,7 @@
             --hover-bg: #e8f5e9;
             --delete-color: #ff5252;
             --empty-bg: #e2e7e8;
+            --alternate-bg: #f0f0f0;
         }
         
         body, html {
@@ -177,6 +178,27 @@
             border: 1px solid var(--cell-border);
             margin: 20px;
         }
+        .schedule h2 {
+    color: #004d4d;
+    padding: 10px;
+    margin: 0 0 10px 0;
+    background-color: rgba(0, 77, 77, 0.1);
+    border-radius: 5px;
+    text-align: center;
+}
+
+.schedule.alternate h2 {
+    background-color: rgba(0, 77, 77, 0.15);
+    
+}
+.schedule {
+    border: 1px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+.schedule:hover {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
         
         .header {
             background-color: var(--nav-bg);
@@ -292,11 +314,26 @@
                 grid-template-columns: repeat(1, 1fr);
                 margin: 10px;
             }
+            .schedule.alternate {
+    background-color: var(--alternate-bg);
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 5px;
+}
             
             .export-buttons {
                 flex-direction: column;
                 align-items: center;
             }
+.conflict-tooltip {
+    position: absolute;
+    background: #ff4444;
+    color: white;
+    padding: 5px;
+    border-radius: 3px;
+    z-index: 100;
+    font-size: 12px;
+}
     conflict-highlight {
     background-color: #ffe0e0 !important;
     color: black !important;
@@ -377,10 +414,10 @@
         
         <div class="export-buttons">
             <button class="export-btn excel" id="export-excel">
-                <span>Exportar para Excel</span>
+                <span>Exportar todos para Excel</span>
             </button>
             <button class="export-btn pdf" id="export-pdf">
-                <span>Exportar para PDF</span>
+                <span>Exportar todos para PDF</span>
             </button>
         </div>    
     
@@ -423,6 +460,7 @@ let colorMap = {};
 function createNewSchedule() {
     scheduleCounter++; // Incrementa o contador de agendas
     const newScheduleName = `Agenda ${scheduleCounter}`; // Cria o nome da agenda
+    const motherSchedule = schedules[0]; 
 
     const newSchedule = {
         id: `schedule-${Date.now()}`,
@@ -430,42 +468,77 @@ function createNewSchedule() {
         scheduleData: []
     };
 
-    const [hours, minutes] = config.startTime.split(':').map(Number);
-    for (let i = 0; i < config.initialPeriods; i++) {
-        const startHours = hours + Math.floor((i * config.timeInterval) / 60);
-        const startMinutes = (minutes + (i * config.timeInterval) % 60);
-        const start = `${Math.floor(startHours).toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}`;
-        const end = calculateEndTime(start);
+if (motherSchedule && motherSchedule.scheduleData) {
+        motherSchedule.scheduleData.forEach(period => {
+            newSchedule.scheduleData.push({
+                id: `period-${newSchedule.scheduleData.length}`,
+                time: period.time, // Mantém o mesmo horário
+                classes: Array(config.days.length).fill().map((_, j) => ({
+                    id: `class-${newSchedule.scheduleData.length}-${j}-${Date.now()}`,
+                    name: `Nova Aula`,
+                    pinned: false,
+                    color: config.defaultColors[(newSchedule.scheduleData.length + j) % config.defaultColors.length],
+                    professor: '',
+                    hasConflict: false
+                }))
+            });
+        });
+    } else {
+        // Caso a Agenda 1 não exista (fallback)
+        const [hours, minutes] = config.startTime.split(':').map(Number);
+        for (let i = 0; i < config.initialPeriods; i++) {
+            const startHours = hours + Math.floor((i * config.timeInterval) / 60);
+            const startMinutes = (minutes + (i * config.timeInterval) % 60);
+            const start = `${startHours.toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}`;
+            const end = calculateEndTime(start);
 
-        newSchedule.scheduleData.push({
-            id: `period-${i}`,
-            time: `${start} - ${end}`,
-            classes: Array(config.days.length).fill().map((_, j) => ({
-                id: `class-${i}-${j}`,
-                name: `Aula ${i + 1}-${j + 1}`,
-                pinned: false,
-                color: config.defaultColors[(i + j) % config.defaultColors.length],
-                professor: '',
-                hasConflict: false // Inicialmente sem conflito
-            }))
-        });
-    }
-
-    schedules.push(newSchedule);
-    currentScheduleIndex = schedules.length - 1;
-    renderSchedules();
-}
-// Função para calcular horário de término automaticamente
-    function calculateEndTime(startTime) {
-        let [hours, minutes] = startTime.split(':').map(Number);
-        minutes += config.timeInterval;
-        hours += Math.floor(minutes / 60);
-        minutes = minutes % 60;
-        const endHours = Math.floor(hours); // Garante que hours seja um número inteiro
-        const endMinutes = Math.floor(minutes); // Garante que minutes seja um número inteiro
-        return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+            newSchedule.scheduleData.push({
+                id: `period-${i}`,
+                time: `${start} - ${end}`,
+                classes: Array(config.days.length).fill().map((_, j) => ({
+                    id: `class-${i}-${j}`,
+                    name: `Aula ${i + 1}-${j + 1}`,
+                    pinned: false,
+                    color: config.defaultColors[(i + j) % config.defaultColors.length],
+                    professor: '',
+                    hasConflict: false
+                }))
+            });
+        }
     }
 
+    schedules.push(newSchedule);
+    currentScheduleIndex = schedules.length - 1;
+    renderSchedules();
+}
+function calculateEndTime(startTime) {
+    let [hours, minutes] = startTime.split(':').map(Number);
+    minutes += config.timeInterval;
+    hours += Math.floor(minutes / 60);
+    minutes = minutes % 60;
+    const endHours = Math.floor(hours); // Garante que hours seja um número inteiro
+    const endMinutes = Math.floor(minutes); // Garante que minutes seja um número inteiro
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+}
+
+function searchClasses(query) {
+    const results = [];
+    schedules.forEach((schedule, sIdx) => {
+        schedule.scheduleData.forEach((period, pIdx) => {
+            period.classes.forEach((cls, cIdx) => {
+                if (cls && (cls.name.includes(query) || cls.professor.includes(query))) {
+                    results.push({
+                        schedule: schedule.name,
+                        time: period.time,
+                        day: config.days[cIdx],
+                        class: cls
+                    });
+                }
+            });
+        });
+    });
+    return results;
+}
 
 // Renderizar todas as grades de horários
 function renderSchedules() {
@@ -474,7 +547,7 @@ function renderSchedules() {
 
     schedules.forEach((scheduleItem, index) => {
         const scheduleDiv = document.createElement('div');
-        scheduleDiv.className = 'schedule';
+        scheduleDiv.className = `schedule ${index % 2 === 0 ? '' : 'alternate'}`; 
         scheduleDiv.dataset.scheduleIndex = index;
 
         const titleElement = document.createElement('h2');
@@ -1037,7 +1110,54 @@ function exportToExcel(scheduleIndex) {
         XLSX.utils.book_append_sheet(wb, ws, scheduleItem.name || "Agenda Escolar");
         XLSX.writeFile(wb, `${scheduleItem.name || "agenda_escolar"}.xlsx`);
     }
+function exportAllToExcel() {
+    if (schedules.length === 0) {
+        alert("Nenhuma agenda para exportar!");
+        return;
+    }
 
+    const wb = XLSX.utils.book_new();
+    const date = new Date().toISOString().split('T')[0];
+    
+    schedules.forEach(schedule => {
+        const data = [['Horário', ...config.days]]; // Cabeçalho
+        
+        schedule.scheduleData.forEach(period => {
+            const row = [period.time];
+            period.classes.forEach(cls => {
+                row.push(cls ? `${cls.name}${cls.professor ? '\n(Prof: ' + cls.professor + ')' : ''}` : '(Vazio)');
+            });
+            data.push(row);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        
+        // Ajustar largura das colunas
+        const colWidths = [{wch: 10}, ...config.days.map(() => ({wch: 20}))];
+        ws['!cols'] = colWidths;
+        
+        XLSX.utils.book_append_sheet(wb, ws, schedule.name.substring(0, 31)); // Nome da planilha limitado a 31 chars
+    });
+
+    XLSX.writeFile(wb, `Todas_Agendas_${date}.xlsx`);
+}
+function highlightConflicts() {
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.remove('conflict-highlight');
+        const classId = cell.dataset.id;
+        if (classId) {
+            const cls = findClassById(classId, cell.dataset.scheduleIndex);
+            if (cls?.hasConflict) {
+                cell.classList.add('conflict-highlight');
+                // Adicionar tooltip dinâmico
+                const tooltip = document.createElement('div');
+                tooltip.className = 'conflict-tooltip';
+                tooltip.textContent = 'Conflito de professor';
+                cell.appendChild(tooltip);
+            }
+        }
+    });
+}
     // Exportar para PDF da grade específica
     function exportToPDF(scheduleIndex) {
         const scheduleItem = schedules[scheduleIndex];
@@ -1072,13 +1192,84 @@ function exportToExcel(scheduleIndex) {
         doc.save(`${scheduleItem.name || 'agenda_escolar'}.pdf`);
     }
 
+function exportAllToPDF() {
+    if (schedules.length === 0) {
+        alert("Nenhuma agenda para exportar!");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm'
+    });
+    const date = new Date().toLocaleDateString();
+    const margin = 10;
+    let yPos = margin;
+
+    schedules.forEach((schedule, index) => {
+        if (index > 0) {
+            doc.addPage('landscape'); // Nova página para cada agenda
+            yPos = margin;
+        }
+
+        // Título da Agenda
+        doc.setFontSize(16);
+        doc.setTextColor(0, 77, 77);
+        doc.text(schedule.name, margin, yPos);
+        yPos += 8;
+
+        // Data de exportação
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Exportado em: ${date}`, doc.internal.pageSize.width - margin - 40, yPos - 8);
+
+        // Cabeçalho da tabela
+        const headers = ['Horário', ...config.days];
+        const data = schedule.scheduleData.map(period => {
+            const row = [period.time];
+            period.classes.forEach(cls => {
+                row.push(cls ? `${cls.name}${cls.professor ? '\nProf: ' + cls.professor : ''}` : '(Vazio)');
+            });
+            return row;
+        });
+
+        // Configuração da tabela
+        doc.autoTable({
+            startY: yPos,
+            head: [headers],
+            body: data,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [0, 77, 77],
+                textColor: 255,
+                fontSize: 10
+            },
+            bodyStyles: {
+                fontSize: 8,
+                cellPadding: 2,
+                lineColor: [200, 200, 200]
+            },
+            styles: {
+                overflow: 'linebreak',
+                cellWidth: 'wrap'
+            },
+            margin: { top: yPos }
+        });
+    });
+
+    doc.save(`Todas_Agendas_${new Date().toISOString().split('T')[0]}.pdf`);
+}
 //##########################
 
 function init() {
     createNewSchedule(); // Cria a primeira grade ao carregar
     document.getElementById('add-schedule-btn').addEventListener('click', createNewSchedule);
     document.getElementById('reset-btn').addEventListener('click', resetSchedule);
+     document.getElementById('export-excel').addEventListener('click', exportAllToExcel);
+    document.getElementById('export-pdf').addEventListener('click', exportAllToPDF);
 }
+
 
 init();    
     </script>
