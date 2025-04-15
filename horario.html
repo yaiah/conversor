@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planejador de Horário de Aulas | Yaiah</title>
+    <meta name="description" content="Planeje a grade de horário de aulas online de forma fácil e gratuita. PLanejador de horários de disciplinas, turmas e atividades acadêmicas">
+
+    <meta name="keywords" content="planejador de horário de aulas, criador de horário de aulas, montar horário de aulas, organizador de aulas, grade de horários, horário escolar, aulas, disciplinas, turmas, organização escolar, grátis, online">
+
+    <meta name="" content="Yaiah (ou o nome do desenvolvedor/organização)">
+
+    <meta name="robots" content="index, follow">
+    <meta http-equiv="content-language" content="pt-BR">
+
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <meta property="og:title" content="Planejador de Horário de Aulas Online Gratuito">
+    <meta property="og:description" content="Crie e personalize horário de aulas de sua escola online de forma fácil e gratuita. Organize seus horários de disciplinas, turmas e atividades acadêmicas">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://seusite.com.br/planejador-horario-aulas">
+    <meta property="og:image" content="https://seusite.com.br/imagens/logo-planejador-aulas.png">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="Nome do Seu Site">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Planejador de Horário de Aulas Online Gratuito">
+    <meta name="twitter:description" content="Crie e personalize horário de aulas online de forma fácil e gratuita. Organize seus horários de disciplinas, turmas e atividades acadêmicas.">
+    <meta name="twitter:image" content="https://seusite.com.br/imagens/logo-planejador-aulas.png">
+
+
+    <!-- Include SheetJS for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+    <!-- Include jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --header-bg: #004d4d;
+            --header-text: #004D4D;
+            --nav-bg: #003333;
+            --cell-bg: #f4f4f4;
+            --cell-border: #cccccc;
+            --pinned-bg: #fff8e1;
+            --pinned-border: #ffc107;
+            --hover-bg: #e8f5e9;
+            --delete-color: #ff5252;
+            --empty-bg: #e2e7e8;
+        }
+        
+        body, html {
+            height: 100%;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 0;
+        }
+        
+        header {
+            background-color: var(--header-bg);
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            height: 45px;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 15px 0;
+            font-size: 1.5rem;
+        }
+        
+        nav {
+            background-color: var(--nav-bg);
+            padding: 10px;
+        }
+        
+        nav ul {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        nav ul li {
+            margin: 0 15px;
+        }
+        
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 5px 0;
+            display: block;
+        }
+        
+        nav ul li a:hover {
+            text-decoration: underline;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background-color: var(--nav-bg);
+            color: white;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background-color: var(--header-bg);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background-color: #333;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+        
+        .export-btn {
+            padding: 10px 15px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .export-btn.excel {
+            background-color: #217345;
+        }
+        
+        .export-btn.pdf {
+            background-color: #006666;
+        }
+        
+        .export-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1px;
+            background-color: var(--cell-border);
+            border: 1px solid var(--cell-border);
+            margin: 20px;
+        }
+        
+        .header {
+            background-color: var(--nav-bg);
+            color: var(--header-text);
+            font-weight: bold;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .time-header {
+            background-color: var(--nav-bg);
+            color: var(--header-text);
+            font-weight: bold;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .cell {
+            background-color: white;
+            min-height: 100px;
+            padding: 8px;
+            position: relative;
+        }
+        
+        .cell.empty {
+            background-color: var(--empty-bg);
+            color: white;
+            border: 1px dashed #cccccc;
+        }
+        
+        .cell.pinned {
+            background-color: var(--pinned-bg);
+            border: 2px solid var(--pinned-border);
+        }
+        
+        .cell-content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .class-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+            word-break: break-word;
+        }
+        
+        .cell-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .cell-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        
+        .pin-btn { color: #ff9800; }
+        .edit-btn { color: #2196f3; }
+        .delete-btn { color: var(--delete-color); }
+        .duplicate-btn { color: #4caf50; }
+        
+        .color-picker {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .time-edit {
+            font-size: 12px;
+            color: #004d4d;
+            cursor: pointer;
+            margin-top: 5px;
+            text-decoration: underline;
+        }
+        
+        .instructions {
+            margin: 20px;
+            padding: 15px;
+            background-color: white;
+            border: 1px solid #ddd;
+        }
+        
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            nav ul {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            nav ul li {
+                margin: 5px 0;
+            }
+            
+            .schedule-grid {
+                grid-template-columns: repeat(1, 1fr);
+                margin: 10px;
+            }
+            
+            .export-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+    conflict-highlight {
+    background-color: #ffe0e0 !important;
+    color: black !important;
+    font-weight: bold;
+    border-left: 3px solid #ff4444 !important;
+    position: relative;
+}
+
+.conflict-highlight::after {
+    content: "CONFLITO";
+    font-size: 0.7em;
+    color: white;
+    background-color: #ff4444;
+    padding: 2px 5px;
+    border-radius: 3px;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+}
+
+/* Optional animation for extra attention */
+@keyframes pulseConflict {
+    0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.3); }
+    70% { box-shadow: 0 0 0 5px rgba(255, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+}
+
+/* Optional: Different style for pinned conflicts */
+.conflict-highlight.pinned {
+    border-left-color: #ff9900 !important;
+    background-color: #fff0e0 !important;
+}
+
+/* Optional: Tooltip with conflict details */
+.conflict-highlight:hover::before {
+    content: attr(data-conflict-details);
+    position: absolute;
+    width: 200px;
+    background: #ff4444;
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    z-index: 100;
+    bottom: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.9em;
+    font-weight: normal;
+    pointer-events: none;
+}
+}
+        
+    </style>
+</head>
+<body>
+    <header>
+        <img src="https://yaiah.github.io/conversor/logoyaiah2.png" alt="Yaiah" class="logo">
+        <h1>Agenda Escolar</h1>
+        <div></div> <!-- Empty div for spacing -->
+    </header>
+    
+    <nav>
+        <ul>
+            <li><a href="index.html">Início</a></li>
+            <li><a href="horario.html">App grade de aulas</a></li>
+            <li><a href="sobre.html">Sobre</a></li>
+            <li><a href="#">Contato</a></li>
+            <li><a href="doacao.html">Doe</a></li>
+        </ul>
+    </nav>
+    
+    <div class="container">
+        <div class="controls">
+            <button id="add-schedule-btn">Adicionar Nova Agenda</button>
+            <button id="reset-btn">Reiniciar Agenda Atual</button>
+            <div id="status">Aulas agendadas: 0</div>
+        </div>
+        
+        <div class="export-buttons">
+            <button class="export-btn excel" id="export-excel">
+                <span>Exportar para Excel</span>
+            </button>
+            <button class="export-btn pdf" id="export-pdf">
+                <span>Exportar para PDF</span>
+            </button>
+        </div>    
+    
+        
+    <div id="schedules-container">
+        </div>
+        <div class="instructions">
+            <h3>Como usar esta agenda:</h3>
+            <ul>
+                <li><strong>Clique duas vezes</strong> para editar o nome da aula ou horário</li>
+                <li><strong>📌</strong> Travar aula | <strong>✏️</strong> Editar | <strong>🗑️</strong> Excluir | <strong>⎘</strong> Duplicar</li>
+                <li><strong>Arraste e solte</strong> para reorganizar</li>
+                <li><strong>Seletor de cor</strong> para personalizar</li>
+            </ul>
+        </div>
+        
+        <footer>
+            <p>&copy; 2023 Yaiah. Todos os direitos reservados.</p>
+        </footer>
+    </div>
+
+    <script>
+let scheduleCounter = 0;
+const config = {
+    days: ['SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA'],
+    initialPeriods: 6,
+    startTime: '07:00',
+    timeInterval: 50, // 50 minutos de duração
+    defaultColors: [
+        '#F0FFF0','FCFBFA'
+    ]
+};
+
+let schedules = []; // Array para armazenar todas as grades de horários
+let currentScheduleIndex = 0; // Índice da grade de horários atualmente ativa
+let draggedCell = null;
+let colorMap = {};
+
+// Função para criar uma nova grade de horários
+function createNewSchedule() {
+    scheduleCounter++; // Incrementa o contador de agendas
+    const newScheduleName = `Agenda ${scheduleCounter}`; // Cria o nome da agenda
+
+    const newSchedule = {
+        id: `schedule-${Date.now()}`,
+        name: newScheduleName, // Define o nome da agenda com a numeração
+        scheduleData: []
+    };
+
+    const [hours, minutes] = config.startTime.split(':').map(Number);
+    for (let i = 0; i < config.initialPeriods; i++) {
+        const startHours = hours + Math.floor((i * config.timeInterval) / 60);
+        const startMinutes = (minutes + (i * config.timeInterval) % 60);
+        const start = `${Math.floor(startHours).toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}`;
+        const end = calculateEndTime(start);
+
+        newSchedule.scheduleData.push({
+            id: `period-${i}`,
+            time: `${start} - ${end}`,
+            classes: Array(config.days.length).fill().map((_, j) => ({
+                id: `class-${i}-${j}`,
+                name: `Aula ${i + 1}-${j + 1}`,
+                pinned: false,
+                color: config.defaultColors[(i + j) % config.defaultColors.length],
+                professor: '',
+                hasConflict: false // Inicialmente sem conflito
+            }))
+        });
+    }
+
+    schedules.push(newSchedule);
+    currentScheduleIndex = schedules.length - 1;
+    renderSchedules();
+}
+// Função para calcular horário de término automaticamente
+    function calculateEndTime(startTime) {
+        let [hours, minutes] = startTime.split(':').map(Number);
+        minutes += config.timeInterval;
+        hours += Math.floor(minutes / 60);
+        minutes = minutes % 60;
+        const endHours = Math.floor(hours); // Garante que hours seja um número inteiro
+        const endMinutes = Math.floor(minutes); // Garante que minutes seja um número inteiro
+        return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+    }
+
+
+// Renderizar todas as grades de horários
+function renderSchedules() {
+    const schedulesContainer = document.getElementById('schedules-container');
+    schedulesContainer.innerHTML = ''; // Limpa o contêiner
+
+    schedules.forEach((scheduleItem, index) => {
+        const scheduleDiv = document.createElement('div');
+        scheduleDiv.className = 'schedule';
+        scheduleDiv.dataset.scheduleIndex = index;
+
+        const titleElement = document.createElement('h2');
+        titleElement.textContent = scheduleItem.name;
+        titleElement.addEventListener('dblclick', () => editScheduleName(index));
+        scheduleDiv.appendChild(titleElement);
+
+        const grid = document.createElement('div');
+        grid.className = 'schedule-grid';
+        grid.id = `schedule-${scheduleItem.id}`; // ID único para cada grade
+        scheduleDiv.appendChild(grid);
+
+        initDragAndDrop(grid); // Inicializa o drag and drop para esta grade
+
+        // Adicionar cabeçalho da grade
+        grid.appendChild(createHeaderCell('')); // Canto superior esquerdo
+        config.days.forEach(day => grid.appendChild(createHeaderCell(day)));
+
+        // Criar linhas de horários para a grade atual
+        scheduleItem.scheduleData.forEach((period, rowIndex) => {
+            grid.appendChild(createTimeCell(period.time, rowIndex, index)); // Coluna de horários
+            period.classes.forEach((cls, colIndex) => {
+                grid.appendChild(cls ? createClassCell(cls, rowIndex, colIndex, index) : createEmptyCell(rowIndex, colIndex, index));
+            });
+        });
+
+        const exportButtons = document.createElement('div');
+        exportButtons.className = 'export-buttons';
+        exportButtons.innerHTML = `
+            <button class="export-btn excel" onclick="exportToExcel(${index})">
+<span>Exportar para Excel</span>
+</button>
+<button class="export-btn pdf" onclick="exportToPDF(${index})">
+    <span>Exportar para PDF</span>
+</button>
+        `;
+        scheduleDiv.appendChild(exportButtons);
+
+        schedulesContainer.appendChild(scheduleDiv);
+    });
+
+    updateStatus();
+}
+
+// Inicializa o drag and drop para esta grade
+function initDragAndDrop(gridElement) {
+    if (!gridElement) return;
+
+    gridElement.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    });
+
+    gridElement.addEventListener('drop', e => {
+        e.preventDefault();
+        if (!draggedCell) return;
+
+        const target = e.target.closest('.cell:not(.header):not(.time-header)');
+        if (!target || target.classList.contains('pinned')) return;
+
+        const sourceScheduleIndex = draggedCell.dataset.scheduleIndex;
+        const targetScheduleIndex = target.dataset.scheduleIndex;
+
+        if (sourceScheduleIndex !== targetScheduleIndex) return; // Impede arrastar entre grades
+
+        const sourceRow = draggedCell.dataset.row;
+        const sourceCol = draggedCell.dataset.col;
+        const targetRow = target.dataset.row;
+        const targetCol = target.dataset.col;
+
+        const currentScheduleData = schedules[sourceScheduleIndex].scheduleData;
+        const sourceClass = currentScheduleData[sourceRow]?.classes[sourceCol];
+        const targetClass = currentScheduleData[targetRow]?.classes[targetCol];
+
+        if (sourceClass && targetClass) {
+            [currentScheduleData[sourceRow].classes[sourceCol], currentScheduleData[targetRow].classes[targetCol]] = [targetClass, sourceClass];
+            renderSchedules();
+        } else if (sourceClass && !targetClass) {
+            currentScheduleData[targetRow].classes[targetCol] = { ...sourceClass, id: `class-<span class="math-inline">\{targetRow\}\-</span>{targetCol}-${Date.now()}`, pinned: false };
+            currentScheduleData[sourceRow].classes[sourceCol] = null;
+            renderSchedules();
+        }
+
+        draggedCell = null;
+    });
+}
+
+// Criar célula de cabeçalho
+function createHeaderCell(text) {
+    const cell = document.createElement('div');
+    cell.className = 'cell header';
+    cell.textContent = text;
+    return cell;
+}
+
+// Criar célula de horário
+function createTimeCell(time, rowIndex, scheduleIndex) {
+    const cell = document.createElement('div');
+    cell.className = 'cell time-header';
+    cell.dataset.row = rowIndex;
+    cell.dataset.scheduleIndex = scheduleIndex;
+
+    const [start, end] = time.split(' - ');
+    cell.innerHTML = `
+        <div>${start} - ${end}</div>
+        <div class="time-edit">Editar Horário</div>
+    `;
+
+    // Editar com duplo-clique ou clique no texto
+    cell.addEventListener('dblclick', () => editTimeSlot(rowIndex, scheduleIndex));
+    cell.querySelector('.time-edit').addEventListener('click', (e) => {
+        e.stopPropagation();
+        editTimeSlot(rowIndex, scheduleIndex);
+    });
+
+    return cell;
+}
+
+// Criar célula vazia
+function createEmptyCell(row, col, scheduleIndex) {
+    const cell = document.createElement('div');
+    cell.className = 'cell empty';
+    cell.dataset.row = row;
+    cell.dataset.col = col;
+    cell.dataset.scheduleIndex = scheduleIndex;
+    return cell;
+}
+
+
+// Criar célula de aula
+function createClassCell(cls, row, col, scheduleIndex) {
+    const cell = document.createElement('div');
+    cell.className = `cell ${cls.pinned ? 'pinned' : ''} ${cls.hasConflict ? 'conflict-highlight' : ''}`; // Adiciona a classe de conflito
+    cell.dataset.row = row;
+    cell.dataset.col = col;
+    cell.dataset.id = cls.id;
+    cell.dataset.scheduleIndex = scheduleIndex;
+    cell.style.backgroundColor = cls.color;
+    cell.draggable = !cls.pinned;
+    cell.title = cls.professor; // Adicionando o atributo title com o nome do professor
+    console.log(cls)
+    cell.innerHTML = `
+        <div class="cell-content">
+            <div class="class-name">${cls.name}</div>
+<div class\="cell\-actions"\>
+<button class="cell-btn pin-btn" title="${cls.pinned ? 'Destravar' : 'Travar'}">${cls.pinned ? '🔒' : '📌'}</button>
+<button class="cell-btn edit-btn" title="Editar">✏️</button>
+<button class="cell-btn delete-btn" title="Excluir">🗑️</button>
+<button class="cell-btn duplicate-btn" title="Duplicar">⎘</button>
+<input type="color" class="color-picker" value="${cls.color}" title="Mudar cor">
+            </div>
+        </div>
+        ${cls.pinned ? '' : '<div class="drag-handle" title="Arrastar">↔</div>'}
+    `;
+
+    // Event listeners (permanecem os mesmos)
+    cell.addEventListener('dblclick', () => editClassName(cls.id, scheduleIndex));
+    cell.querySelector('.pin-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePin(cls.id, scheduleIndex);
+    });
+    cell.querySelector('.edit-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        editClassName(cls.id, scheduleIndex);
+    });
+    cell.querySelector('.delete-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteClass(cls.id, scheduleIndex);
+    });
+    cell.querySelector('.duplicate-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        duplicateClass(cls.id, scheduleIndex);
+    });
+    cell.querySelector('.color-picker').addEventListener('change', (e) => {
+        changeClassColor(cls.id, e.target.value, scheduleIndex);
+    });
+
+    if (cls.hasConflict) {
+        cell.dataset.conflictDetails = `Professor ${cls.professor} em conflito`;
+    }
+    if (!cls.pinned) {
+        cell.addEventListener('dragstart', handleDragStart);
+        cell.addEventListener('dragend', handleDragEnd);
+    }
+
+    return cell;
+}
+
+
+// Editar o nome da grade de horários
+function editScheduleName(scheduleIndex) {
+    const newName = prompt('Novo nome para a agenda:', schedules[scheduleIndex].name);
+    if (newName && newName.trim()) {
+        schedules[scheduleIndex].name = newName.trim();
+        renderSchedules();
+    }
+}
+
+// Editar horário
+function editTimeSlot(rowIndex, scheduleIndex) {
+    const period = schedules[scheduleIndex].scheduleData[rowIndex];
+    const [currentStart] = period.time.split(' - ');
+
+    const newStartTime = prompt('Novo horário de início (HH:MM):', currentStart);
+    if (!newStartTime || !newStartTime.match(/^\d{2}:\d{2}$/)) return;
+
+    const newEndTime = calculateEndTime(newStartTime);
+    period.time = `${newStartTime} - ${newEndTime}`;
+    renderSchedules();
+}
+
+function editClassName(classId, scheduleIndex) {
+    const cls = findClassById(classId, scheduleIndex);
+    if (!cls) return;
+
+    const position = findClassPosition(classId, scheduleIndex);
+    if (!position) return;
+
+    const originalProfessor = cls.professor;
+    const newName = prompt('Nome da aula:', cls.name);
+    if (newName && newName.trim()) {
+        cls.name = newName.trim();
+        const professorName = prompt('Nome do professor (opcional):', cls.professor);
+        if (professorName !== null) {
+            cls.professor = professorName.trim();
+        }
+        if (colorMap[cls.name]) cls.color = colorMap[cls.name];
+
+        if (cls.professor && cls.professor !== originalProfessor) {
+            const tempClass = {
+                ...cls,
+                row: position.row,
+                col: position.col
+            };
+            const allowConflict = checkForTeacherConflict(tempClass, scheduleIndex);
+            cls.hasConflict = !allowConflict;
+            
+            if (!allowConflict) {
+                cls.professor = originalProfessor;
+            }
+        } else {
+            cls.hasConflict = false;
+        }
+        renderSchedules();
+    }
+}
+
+// Mudar cor da aula
+function changeClassColor(classId, color, scheduleIndex) {
+    const cls = findClassById(classId, scheduleIndex);
+    if (cls) {
+        cls.color = color;
+        colorMap[cls.name] = color;
+        renderSchedules();
+    }
+}
+
+// Alternar pino
+function togglePin(classId, scheduleIndex) {
+    const cls = findClassById(classId, scheduleIndex);
+    if (cls) {
+        cls.pinned = !cls.pinned;
+        renderSchedules();
+    }
+}
+
+// Excluir aula
+function deleteClass(classId, scheduleIndex) {
+    if (confirm("Tem certeza que deseja excluir esta aula?")) {
+        const currentSchedule = schedules[scheduleIndex].scheduleData;
+        for (const period of currentSchedule) {
+            const index = period.classes.findIndex(c => c?.id === classId);
+            if (index !== -1) {
+                period.classes[index] = null;
+                break;
+            }
+        }
+        renderSchedules();
+    }
+}
+
+// Duplicar aula
+function duplicateClass(classId, scheduleIndex) {
+    const original = findClassById(classId, scheduleIndex);
+    if (!original) return;
+
+    const currentScheduleData = schedules[scheduleIndex].scheduleData;
+    let duplicated = false;
+
+    // Encontra próxima vaga vazia na agenda atual
+    for (let row = 0; row < currentScheduleData.length; row++) {
+        for (let col = 0; col < config.days.length; col++) {
+            if (!currentScheduleData[row].classes[col]) {
+                currentScheduleData[row].classes[col] = {
+                    ...original,
+                    id: `class-${row}-${col}-${Date.now()}`,
+                    pinned: false,
+                    professor: original.professor, // Mantém o professor original na duplicação
+                    hasConflict: original.hasConflict // Copia o status de conflito
+                };
+
+                duplicated = true;
+                break;
+            }
+        }
+        if (duplicated) break;
+    }
+
+    // Se não encontrou vaga, adiciona nova linha na agenda atual
+    if (!duplicated) {
+        addTimeSlot(scheduleIndex);
+        // A duplicação ocorrerá na próxima renderização
+    }
+
+    renderSchedules();
+}
+
+// Adicionar novo horário a uma grade específica
+function addTimeSlot(scheduleIndex) {
+    const currentScheduleData = schedules[scheduleIndex].scheduleData;
+    const last = currentScheduleData[currentScheduleData.length - 1];
+    const [lastStart] = last.time.split(' - ');
+    const newStart = calculateEndTime(lastStart);
+    const newEnd = calculateEndTime(newStart);
+
+    currentScheduleData.push({
+        id: `period-${currentScheduleData.length}`,
+        time: `${newStart} - ${newEnd}`,
+        classes: Array(config.days.length).fill().map((_, i) => ({
+            id: `class-<span class="math-inline">\{currentScheduleData\.length\}\-</span>{i}-${Date.now()}`, // Correção no ID
+            name: `Nova Aula`,
+            pinned: false,
+            color: config.defaultColors[(currentScheduleData.length + i) % config.defaultColors.length]
+        }))
+    });
+
+    renderSchedules();
+}
+
+//helper function to find a class's position
+function findClassPosition(classId, scheduleIndex) {
+    if (scheduleIndex >= 0 && scheduleIndex < schedules.length) {
+        const currentSchedule = schedules[scheduleIndex].scheduleData;
+        for (let row = 0; row < currentSchedule.length; row++) {
+            for (let col = 0; col < currentSchedule[row].classes.length; col++) {
+                if (currentSchedule[row].classes[col]?.id === classId) {
+                    return { row, col };
+                }
+            }
+        }
+    }
+    return null;
+}
+//Checar conflito de horário na alocação do professor
+function checkForTeacherConflict(currentClass, currentScheduleIndex) {
+    if (!currentClass.professor || currentClass.professor.trim() === '') {
+        return true; // No conflict if no professor assigned
+    }
+
+    let hasConflict = false;
+    let conflictDetails = [];
+
+    schedules.forEach((schedule, scheduleIdx) => {
+        // Skip if the current schedule doesn't have this time slot
+        if (!schedule.scheduleData[currentClass.row]?.classes[currentClass.col]) {
+            return;
+        }
+
+        const otherClass = schedule.scheduleData[currentClass.row].classes[currentClass.col];
+        if (otherClass && 
+            otherClass.professor && 
+            otherClass.professor.trim().toLowerCase() === currentClass.professor.trim().toLowerCase() &&
+            (scheduleIdx !== currentScheduleIndex || otherClass.id !== currentClass.id)) {
+            
+            const conflictTime = schedule.scheduleData[currentClass.row].time;
+            const conflictDay = config.days[currentClass.col];
+            hasConflict = true;
+            conflictDetails.push({
+                scheduleName: schedule.name,
+                day: conflictDay,
+                time: conflictTime,
+                className: otherClass.name
+            });
+        }
+    });
+
+    if (hasConflict) {
+        let conflictMessage = "Conflito de horário detectado!\n";
+        conflictMessage += `Professor: ${currentClass.professor}\n`;
+        conflictMessage += `Horário: ${schedules[currentScheduleIndex].scheduleData[currentClass.row].time}\n`;
+        conflictMessage += `Dia: ${config.days[currentClass.col]}\n\n`;
+        conflictMessage += "Este professor já está alocado em:\n";
+        
+        conflictDetails.forEach(conflict => {
+            conflictMessage += `- ${conflict.scheduleName}: ${conflict.day} ${conflict.time} (${conflict.className})\n`;
+        });
+        
+        conflictMessage += "\nDeseja continuar com a alocação mesmo assim?";
+        return confirm(conflictMessage);
+    }
+
+    return true;
+}
+// Reiniciar agenda atual
+function resetSchedule() {
+    if (confirm("Tem certeza que deseja reiniciar a agenda atual?")) {
+        const currentSchedule = schedules[currentScheduleIndex];
+        currentSchedule.scheduleData = [];
+        const [hours, minutes] = config.startTime.split(':').map(Number);
+
+        for (let i = 0; i < config.initialPeriods; i++) {
+            const startHours = hours + Math.floor((i * config.timeInterval) / 60);
+            const startMinutes = (minutes + (i * config.timeInterval) % 60).toString().padStart(2, '0');
+            const start = `<span class="math-inline">\{startHours\}\:</span>{startMinutes}`;
+            const end = calculateEndTime(start);
+
+            currentSchedule.scheduleData.push({
+                id: `period-${i}`,
+                time: `${start} - ${end}`,
+                classes: Array(config.days.length).fill().map((_, j) => ({
+                    id: `class-<span class="math-inline">\{i\}\-</span>{j}`,
+                    name: `Aula <span class="math-inline">\{i\+1\}\-</span>{j+1}`,
+                    pinned: false,
+                    color: config.defaultColors[(i + j) % config.defaultColors.length]
+                }))
+            });
+        }
+        colorMap = {};
+        renderSchedules();
+    }
+}
+
+// Encontrar aula por ID em uma grade específica
+function findClassById(id, scheduleIndex) {
+    const currentSchedule = schedules[scheduleIndex].scheduleData;
+    for (const period of currentSchedule) {
+        const cls = period.classes.find(c => c?.id === id);
+        if (cls) return cls;
+    }
+    return null; // Retorna null se a aula não for encontrada
+}
+
+// Drag and drop
+    function handleDragStart(e) {
+    const draggedElement = e.target.closest('.cell:not(.header):not(.time-header):not(.pinned)');
+    if (!draggedElement) return;
+
+    draggedCell = {
+        element: draggedElement,
+        id: draggedElement.dataset.id,
+        scheduleIndex: parseInt(draggedElement.dataset.scheduleIndex),
+        row: parseInt(draggedElement.dataset.row),
+        col: parseInt(draggedElement.dataset.col)
+    };
+    draggedElement.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+}
+
+    function handleDragEnd() {
+        document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
+        draggedCell = null;
+    }
+
+function initDragAndDrop(gridElement) {
+    if (!gridElement) return;
+
+    gridElement.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    });
+
+    gridElement.addEventListener('drop', e => {
+        e.preventDefault();
+        if (!draggedCell) return;
+
+        const target = e.target.closest('.cell:not(.header):not(.time-header):not(.dragging)');
+        if (!target || target.classList.contains('pinned')) return;
+
+        const targetScheduleIndex = parseInt(target.dataset.scheduleIndex);
+        const targetRow = parseInt(target.dataset.row);
+        const targetCol = parseInt(target.dataset.col);
+
+        // Get source and target classes
+        const sourceClass = findClassById(draggedCell.id, draggedCell.scheduleIndex);
+        const targetClass = findClassById(target.dataset.id, targetScheduleIndex);
+
+        if (!sourceClass) return;
+
+        // Check for conflicts if professor exists
+        if (sourceClass.professor && sourceClass.professor.trim() !== '') {
+            const tempClass = {
+                ...sourceClass,
+                row: targetRow,
+                col: targetCol
+            };
+            
+            if (!checkForTeacherConflict(tempClass, targetScheduleIndex)) {
+                draggedCell = null;
+                document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
+                return;
+            }
+        }
+
+        // Perform the move operation
+        const sourceSchedule = schedules[draggedCell.scheduleIndex];
+        const targetSchedule = schedules[targetScheduleIndex];
+
+        if (targetClass) {
+            // Swap classes
+            [sourceSchedule.scheduleData[draggedCell.row].classes[draggedCell.col],
+             targetSchedule.scheduleData[targetRow].classes[targetCol]] = 
+            [targetClass, sourceClass];
+        } else {
+            // Move to empty cell
+            targetSchedule.scheduleData[targetRow].classes[targetCol] = {
+                ...sourceClass,
+                id: `class-${targetRow}-${targetCol}-${Date.now()}`,
+                pinned: false
+            };
+            sourceSchedule.scheduleData[draggedCell.row].classes[draggedCell.col] = null;
+        }
+
+        renderSchedules();
+        draggedCell = null;
+        document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
+    });
+}
+        
+
+//##########################
+// Atualizar status
+function updateStatus() {
+    let count = 0;
+    if (schedules[currentScheduleIndex] && schedules[currentScheduleIndex].scheduleData) {
+        count = schedules[currentScheduleIndex].scheduleData.reduce((sum, period) => sum + period.classes.filter(Boolean).length, 0);
+    }
+    document.getElementById('status').textContent = `Aulas agendadas: ${count}`;
+}
+
+// Exportar para Excel da grade específica
+function exportToExcel(scheduleIndex) {
+        const scheduleItem = schedules[scheduleIndex];
+        if (!scheduleItem || !scheduleItem.scheduleData) return;
+
+        const data = [];
+        const headers = ['Horário', ...config.days];
+        data.push(headers);
+
+        scheduleItem.scheduleData.forEach(period => {
+            const row = [period.time];
+            period.classes.forEach(cls => {
+                row.push(cls ? cls.name : '(Vazio)');
+            });
+            data.push(row);
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, scheduleItem.name || "Agenda Escolar");
+        XLSX.writeFile(wb, `${scheduleItem.name || "agenda_escolar"}.xlsx`);
+    }
+
+    // Exportar para PDF da grade específica
+    function exportToPDF(scheduleIndex) {
+        const scheduleItem = schedules[scheduleIndex];
+        if (!scheduleItem || !scheduleItem.scheduleData) return;
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape' });
+        const headers = ['Horário', ...config.days];
+        const data = scheduleItem.scheduleData.map(period => {
+            const row = [period.time];
+            period.classes.forEach(cls => {
+                row.push(cls ? cls.name : '(Vazio)');
+            });
+            return row;
+        });
+
+        doc.setFontSize(18);
+        doc.text(scheduleItem.name || 'Agenda Escolar', 14, 15);
+        doc.setFontSize(12);
+        doc.text(`Gerado em: ${new Date().toLocaleDateString()}`, 14, 22);
+
+        doc.autoTable({
+            head: [headers],
+            body: data,
+            startY: 30,
+            theme: 'grid',
+            headStyles: { fillColor: [0, 77, 77], textColor: 255 },
+            alternateRowStyles: { fillColor: [244, 244, 244] },
+            margin: { top: 30 }
+        });
+
+        doc.save(`${scheduleItem.name || 'agenda_escolar'}.pdf`);
+    }
+
+//##########################
+
+function init() {
+    createNewSchedule(); // Cria a primeira grade ao carregar
+    document.getElementById('add-schedule-btn').addEventListener('click', createNewSchedule);
+    document.getElementById('reset-btn').addEventListener('click', resetSchedule);
+}
+
+init();    
+    </script>
+</body>
+</html>
