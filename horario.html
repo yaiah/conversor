@@ -385,6 +385,32 @@
     pointer-events: none;
 }
 }
+
+#agenda-name-box {
+    position: fixed;
+    left: 0; /* Alinha o box à borda esquerda da tela */
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto; /* Largura automática para ajustar ao conteúdo */
+    height: auto;
+    text-align: center;
+    background-color: rgba(0, 77, 77, 0.9); /* Fundo com transparência */
+    border-radius: 0 5px 5px 0; /* Bordas arredondadas à direita */
+    padding: 10px 5px; /* Espaçamento interno */
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2); /* Sutil sombra */
+    z-index: 1000; /* Garante que o box esteja sempre na frente */
+}
+
+#agenda-name-text {
+    display: block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    font-size: 14px;
+    color: white; /* Texto branco para contraste */
+    font-weight: bold;
+    letter-spacing: 1px; /* Espaçamento entre letras */
+}
         
     </style>
 </head>
@@ -420,7 +446,9 @@
                 <span>Exportar todos para PDF</span>
             </button>
         </div>    
-    
+     <div id="agenda-name-box">
+        <span id="agenda-name-text"></span>
+    </div>
         
     <div id="schedules-container">
         </div>
@@ -475,7 +503,7 @@ if (motherSchedule && motherSchedule.scheduleData) {
                 time: period.time, // Mantém o mesmo horário
                 classes: Array(config.days.length).fill().map((_, j) => ({
                     id: `class-${newSchedule.scheduleData.length}-${j}-${Date.now()}`,
-                    name: `Nova Aula`,
+                    name: ``,
                     pinned: false,
                     color: config.defaultColors[(newSchedule.scheduleData.length + j) % config.defaultColors.length],
                     professor: '',
@@ -497,7 +525,7 @@ if (motherSchedule && motherSchedule.scheduleData) {
                 time: `${start} - ${end}`,
                 classes: Array(config.days.length).fill().map((_, j) => ({
                     id: `class-${i}-${j}`,
-                    name: `Aula ${i + 1}-${j + 1}`,
+                    name: ``,
                     pinned: false,
                     color: config.defaultColors[(i + j) % config.defaultColors.length],
                     professor: '',
@@ -768,30 +796,45 @@ function editClassName(classId, scheduleIndex) {
 
     const originalProfessor = cls.professor;
     const newName = prompt('Nome da aula:', cls.name);
+ 
     if (newName && newName.trim()) {
         cls.name = newName.trim();
         const professorName = prompt('Nome do professor (opcional):', cls.professor);
+        
         if (professorName !== null) {
-            cls.professor = professorName.trim();
-        }
-        if (colorMap[cls.name]) cls.color = colorMap[cls.name];
-
-        if (cls.professor && cls.professor !== originalProfessor) {
-            const tempClass = {
-                ...cls,
-                row: position.row,
-                col: position.col
-            };
-            const allowConflict = checkForTeacherConflict(tempClass, scheduleIndex);
-            cls.hasConflict = !allowConflict;
-            
-            if (!allowConflict) {
-                cls.professor = originalProfessor;
+            // Se o professor foi alterado
+            if (professorName.trim() !== originalProfessor) {
+                cls.professor = professorName.trim();
+                
+                const tempClass = {
+                    ...cls,
+                    row: position.row,
+                    col: position.col
+                };
+                
+                const { hasConflict, conflicts } = checkForTeacherConflict(tempClass, scheduleIndex);
+                
+                if (hasConflict) {
+                    let conflictMessage = `Professor ${cls.professor} já alocado em:\n`;
+                    conflicts.forEach(c => {
+                        conflictMessage += `- ${c.scheduleName}: ${c.day} ${c.time} (${c.className})\n`;
+                    });
+                    
+                    if (!confirm(`${conflictMessage}\nDeseja manter essa alteração?`)) {
+                        // Usuário cancelou - reverte alterações
+                        cls.professor = originalProfessor;
+                        cls.hasConflict = false;
+                        renderSchedules();
+                        return;
+                    }
+                }
+                
+                cls.hasConflict = hasConflict;
             }
-        } else {
-            cls.hasConflict = false;
         }
+        
         renderSchedules();
+        saveData();
     }
 }
 
@@ -903,53 +946,29 @@ function findClassPosition(classId, scheduleIndex) {
 }
 //Checar conflito de horário na alocação do professor
 function checkForTeacherConflict(currentClass, currentScheduleIndex) {
-    if (!currentClass.professor || currentClass.professor.trim() === '') {
-        return true; // No conflict if no professor assigned
-    }
-
-    let hasConflict = false;
-    let conflictDetails = [];
-
+    const conflicts = [];
+    
     schedules.forEach((schedule, scheduleIdx) => {
-        // Skip if the current schedule doesn't have this time slot
-        if (!schedule.scheduleData[currentClass.row]?.classes[currentClass.col]) {
-            return;
-        }
-
-        const otherClass = schedule.scheduleData[currentClass.row].classes[currentClass.col];
+        const otherClass = schedule.scheduleData[currentClass.row]?.classes[currentClass.col];
         if (otherClass && 
             otherClass.professor && 
+            currentClass.professor && 
             otherClass.professor.trim().toLowerCase() === currentClass.professor.trim().toLowerCase() &&
             (scheduleIdx !== currentScheduleIndex || otherClass.id !== currentClass.id)) {
             
-            const conflictTime = schedule.scheduleData[currentClass.row].time;
-            const conflictDay = config.days[currentClass.col];
-            hasConflict = true;
-            conflictDetails.push({
+            conflicts.push({
                 scheduleName: schedule.name,
-                day: conflictDay,
-                time: conflictTime,
+                time: schedule.scheduleData[currentClass.row].time,
+                day: config.days[currentClass.col],
                 className: otherClass.name
             });
         }
     });
 
-    if (hasConflict) {
-        let conflictMessage = "Conflito de horário detectado!\n";
-        conflictMessage += `Professor: ${currentClass.professor}\n`;
-        conflictMessage += `Horário: ${schedules[currentScheduleIndex].scheduleData[currentClass.row].time}\n`;
-        conflictMessage += `Dia: ${config.days[currentClass.col]}\n\n`;
-        conflictMessage += "Este professor já está alocado em:\n";
-        
-        conflictDetails.forEach(conflict => {
-            conflictMessage += `- ${conflict.scheduleName}: ${conflict.day} ${conflict.time} (${conflict.className})\n`;
-        });
-        
-        conflictMessage += "\nDeseja continuar com a alocação mesmo assim?";
-        return confirm(conflictMessage);
-    }
-
-    return true;
+    return {
+        hasConflict: conflicts.length > 0,
+        conflicts
+    };
 }
 // Reiniciar agenda atual
 function resetSchedule() {
@@ -1033,22 +1052,33 @@ function initDragAndDrop(gridElement) {
 
         // Get source and target classes
         const sourceClass = findClassById(draggedCell.id, draggedCell.scheduleIndex);
-        const targetClass = findClassById(target.dataset.id, targetScheduleIndex);
+         
+        //const targetClass = findClassById(target.dataset.id, targetScheduleIndex);
 
         if (!sourceClass) return;
 
         // Check for conflicts if professor exists
-        if (sourceClass.professor && sourceClass.professor.trim() !== '') {
+          if (sourceClass.professor) {
             const tempClass = {
                 ...sourceClass,
                 row: targetRow,
                 col: targetCol
             };
+
+            const { hasConflict, conflicts } = checkForTeacherConflict(tempClass, targetScheduleIndex);
             
-            if (!checkForTeacherConflict(tempClass, targetScheduleIndex)) {
-                draggedCell = null;
-                document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
-                return;
+            if (hasConflict) {
+                let conflictMessage = `Professor ${sourceClass.professor} já alocado em:\n`;
+                conflicts.forEach(c => {
+                    conflictMessage += `- ${c.scheduleName}: ${c.day} ${c.time} (${c.className})\n`;
+                });
+                
+                if (!confirm(`${conflictMessage}\nDeseja continuar mesmo assim?`)) {
+                    // Cancela a operação
+                    draggedCell = null;
+                    document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
+                    return;
+                }
             }
         }
 
@@ -1260,7 +1290,9 @@ function exportAllToPDF() {
 
     doc.save(`Todas_Agendas_${new Date().toISOString().split('T')[0]}.pdf`);
 }
-//##########################
+
+
+//#####################
 
 function init() {
     createNewSchedule(); // Cria a primeira grade ao carregar
@@ -1268,6 +1300,57 @@ function init() {
     document.getElementById('reset-btn').addEventListener('click', resetSchedule);
      document.getElementById('export-excel').addEventListener('click', exportAllToExcel);
     document.getElementById('export-pdf').addEventListener('click', exportAllToPDF);
+    
+    //##########################
+const agendaNameBox = document.getElementById('agenda-name-box');
+const agendaNameText = document.getElementById('agenda-name-text');
+const schedulesContainer = document.getElementById('schedules-container');
+const schedules = document.querySelectorAll('.schedule'); // Seleciona todos os elementos com a classe 'schedule'
+
+function updateAgendaNameBox() {
+    const agendaNameText = document.getElementById('agenda-name-text');
+    const schedules = document.querySelectorAll('.schedule'); // Busca os elementos atualizados
+    
+    let closestSchedule = null;
+    let closestDistance = Infinity;
+    const viewportCenter = window.innerHeight / 2;
+
+    schedules.forEach(schedule => {
+        const rect = schedule.getBoundingClientRect();
+        const scheduleCenter = rect.top + (rect.height / 2);
+        const distance = Math.abs(viewportCenter - scheduleCenter);
+        
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestSchedule = schedule;
+        }
+    });
+
+    if (closestSchedule) {
+        const scheduleName = closestSchedule.querySelector('h2').textContent;
+        agendaNameText.textContent = scheduleName;
+        
+        // Opcional: destacar a agenda ativa
+        schedules.forEach(s => s.classList.remove('active-schedule'));
+        closestSchedule.classList.add('active-schedule');
+    }
+}
+
+// Adicione este estilo para a agenda ativa (opcional)
+const style = document.createElement('style');
+style.textContent = `
+    .active-schedule {
+        box-shadow: 0 0 0 1px #95C9A0;
+    }
+`;
+document.head.appendChild(style);
+
+
+// Atualiza o nome da agenda quando a página é rolada
+window.addEventListener('scroll', updateAgendaNameBox);
+
+// Atualiza o nome da agenda inicialmente
+updateAgendaNameBox();
 }
 
 
