@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <!-- Versão 4.54 Mostrador de agenda e highlight, exportação PDF e excel, quadros vazios quando sem entrada de dados da aula. -- >
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planejador de Horário de Aulas | Yaiah</title>
@@ -240,6 +241,16 @@
             flex-direction: column;
             justify-content: space-between;
         }
+        
+        .cell[draggable="true"] {
+    cursor: move;
+    user-select: none;
+}
+
+.cell.dragging {
+    opacity: 0.5;
+    background-color: #e0e0e0;
+}
         
         .class-name {
             font-weight: 500;
@@ -633,35 +644,72 @@ function initDragAndDrop(gridElement) {
         e.preventDefault();
         if (!draggedCell) return;
 
-        const target = e.target.closest('.cell:not(.header):not(.time-header)');
+        const target = e.target.closest('.cell:not(.header):not(.time-header):not(.dragging)');
         if (!target || target.classList.contains('pinned')) return;
 
-        const sourceScheduleIndex = draggedCell.dataset.scheduleIndex;
-        const targetScheduleIndex = target.dataset.scheduleIndex;
+        const targetScheduleIndex = parseInt(target.dataset.scheduleIndex);
+        const targetRow = parseInt(target.dataset.row);
+        const targetCol = parseInt(target.dataset.col);
 
-        if (sourceScheduleIndex !== targetScheduleIndex) return; // Impede arrastar entre grades
+        // Get source and target classes
+        const sourceClass = findClassById(draggedCell.id, draggedCell.scheduleIndex);
+        const targetClass = findClassById(target.dataset.id, targetScheduleIndex);
 
-        const sourceRow = draggedCell.dataset.row;
-        const sourceCol = draggedCell.dataset.col;
-        const targetRow = target.dataset.row;
-        const targetCol = target.dataset.col;
+         
+        //const targetClass = findClassById(target.dataset.id, targetScheduleIndex);
 
-        const currentScheduleData = schedules[sourceScheduleIndex].scheduleData;
-        const sourceClass = currentScheduleData[sourceRow]?.classes[sourceCol];
-        const targetClass = currentScheduleData[targetRow]?.classes[targetCol];
+        if (!sourceClass) return;
 
-        if (sourceClass && targetClass) {
-            [currentScheduleData[sourceRow].classes[sourceCol], currentScheduleData[targetRow].classes[targetCol]] = [targetClass, sourceClass];
-            renderSchedules();
-        } else if (sourceClass && !targetClass) {
-            currentScheduleData[targetRow].classes[targetCol] = { ...sourceClass, id: `class-<span class="math-inline">\{targetRow\}\-</span>{targetCol}-${Date.now()}`, pinned: false };
-            currentScheduleData[sourceRow].classes[sourceCol] = null;
-            renderSchedules();
+        // Check for conflicts if professor exists
+          if (sourceClass.professor) {
+            const tempClass = {
+                ...sourceClass,
+                row: targetRow,
+                col: targetCol
+            };
+
+            const { hasConflict, conflicts } = checkForTeacherConflict(tempClass, targetScheduleIndex);
+            
+            if (hasConflict) {
+                let conflictMessage = `Professor ${sourceClass.professor} já alocado em:\n`;
+                conflicts.forEach(c => {
+                    conflictMessage += `- ${c.scheduleName}: ${c.day} ${c.time} (${c.className})\n`;
+                });
+                
+                if (!confirm(`${conflictMessage}\nDeseja continuar mesmo assim?`)) {
+                    // Cancela a operação
+                    draggedCell = null;
+                    document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
+                    return;
+                }
+            }
         }
 
+        // Perform the move operation
+        const sourceSchedule = schedules[draggedCell.scheduleIndex];
+        const targetSchedule = schedules[targetScheduleIndex];
+
+        if (targetClass) {
+            // Swap classes
+            [sourceSchedule.scheduleData[draggedCell.row].classes[draggedCell.col],
+             targetSchedule.scheduleData[targetRow].classes[targetCol]] = 
+            [targetClass, sourceClass];
+        } else {
+            // Move to empty cell
+            targetSchedule.scheduleData[targetRow].classes[targetCol] = {
+                ...sourceClass,
+                id: `class-${targetRow}-${targetCol}-${Date.now()}`,
+                pinned: false
+            };
+            sourceSchedule.scheduleData[draggedCell.row].classes[draggedCell.col] = null;
+        }
+
+        renderSchedules();
         draggedCell = null;
+        document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
     });
 }
+        
 
 // Criar célula de cabeçalho
 function createHeaderCell(text) {
@@ -1010,7 +1058,7 @@ function findClassById(id, scheduleIndex) {
 }
 
 // Drag and drop
-    function handleDragStart(e) {
+function handleDragStart(e) {
     const draggedElement = e.target.closest('.cell:not(.header):not(.time-header):not(.pinned)');
     if (!draggedElement) return;
 
@@ -1026,87 +1074,12 @@ function findClassById(id, scheduleIndex) {
     e.dataTransfer.setData('text/plain', '');
 }
 
-    function handleDragEnd() {
-        document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
-        draggedCell = null;
-    }
-
-function initDragAndDrop(gridElement) {
-    if (!gridElement) return;
-
-    gridElement.addEventListener('dragover', e => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    });
-
-    gridElement.addEventListener('drop', e => {
-        e.preventDefault();
-        if (!draggedCell) return;
-
-        const target = e.target.closest('.cell:not(.header):not(.time-header):not(.dragging)');
-        if (!target || target.classList.contains('pinned')) return;
-
-        const targetScheduleIndex = parseInt(target.dataset.scheduleIndex);
-        const targetRow = parseInt(target.dataset.row);
-        const targetCol = parseInt(target.dataset.col);
-
-        // Get source and target classes
-        const sourceClass = findClassById(draggedCell.id, draggedCell.scheduleIndex);
-         
-        //const targetClass = findClassById(target.dataset.id, targetScheduleIndex);
-
-        if (!sourceClass) return;
-
-        // Check for conflicts if professor exists
-          if (sourceClass.professor) {
-            const tempClass = {
-                ...sourceClass,
-                row: targetRow,
-                col: targetCol
-            };
-
-            const { hasConflict, conflicts } = checkForTeacherConflict(tempClass, targetScheduleIndex);
-            
-            if (hasConflict) {
-                let conflictMessage = `Professor ${sourceClass.professor} já alocado em:\n`;
-                conflicts.forEach(c => {
-                    conflictMessage += `- ${c.scheduleName}: ${c.day} ${c.time} (${c.className})\n`;
-                });
-                
-                if (!confirm(`${conflictMessage}\nDeseja continuar mesmo assim?`)) {
-                    // Cancela a operação
-                    draggedCell = null;
-                    document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
-                    return;
-                }
-            }
-        }
-
-        // Perform the move operation
-        const sourceSchedule = schedules[draggedCell.scheduleIndex];
-        const targetSchedule = schedules[targetScheduleIndex];
-
-        if (targetClass) {
-            // Swap classes
-            [sourceSchedule.scheduleData[draggedCell.row].classes[draggedCell.col],
-             targetSchedule.scheduleData[targetRow].classes[targetCol]] = 
-            [targetClass, sourceClass];
-        } else {
-            // Move to empty cell
-            targetSchedule.scheduleData[targetRow].classes[targetCol] = {
-                ...sourceClass,
-                id: `class-${targetRow}-${targetCol}-${Date.now()}`,
-                pinned: false
-            };
-            sourceSchedule.scheduleData[draggedCell.row].classes[draggedCell.col] = null;
-        }
-
-        renderSchedules();
-        draggedCell = null;
-        document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
-    });
+function handleDragEnd() {
+    document.querySelectorAll('.cell.dragging').forEach(c => c.classList.remove('dragging'));
+    draggedCell = null;
 }
-        
+
+
 
 //##########################
 // Atualizar status
