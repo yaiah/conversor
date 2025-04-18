@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
     <!-- Versão 4.54 Mostrador de agenda e highlight, exportação PDF e excel, quadros vazios quando sem entrada de dados da aula. -- >
+        <!-- Versão 4.57: Salva dados localmente e os recupera, provê estatísticas para o usuário  -- >
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planejador de Horário de Aulas | Yaiah</title>
@@ -422,7 +423,26 @@
     font-weight: bold;
     letter-spacing: 1px; /* Espaçamento entre letras */
 }
-        
+
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 15px;
+}
+
+.zoom-controls button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#zoom-level {
+    min-width: 50px;
+    text-align: center;
+}        
     </style>
 </head>
 <body>
@@ -447,7 +467,14 @@
             <button id="add-schedule-btn">Adicionar Nova Agenda</button>
             <button id="reset-btn">Reiniciar Agenda Atual</button>
             <div id="status">Aulas agendadas: 0</div>
+            <div class="zoom-controls">
+        <button id="zoom-out">-</button>
+        <span id="zoom-level">100%</span>
+        <button id="zoom-in">+</button>
+    </div>
         </div>
+        
+        
         
         <div class="export-buttons">
             <button class="export-btn excel" id="export-excel">
@@ -456,6 +483,8 @@
             <button class="export-btn pdf" id="export-pdf">
                 <span>Exportar todos para PDF</span>
             </button>
+            <button id="show-stats-btn">Estatísticas</button>
+
         </div>    
      <div id="agenda-name-box">
         <span id="agenda-name-text"></span>
@@ -494,6 +523,31 @@ let schedules = []; // Array para armazenar todas as grades de horários
 let currentScheduleIndex = 0; // Índice da grade de horários atualmente ativa
 let draggedCell = null;
 let colorMap = {};
+
+// Função para salvar os dados no localStorage
+function saveData() {
+    localStorage.setItem('savedSchedules', JSON.stringify(schedules));
+    localStorage.setItem('savedScheduleCounter', scheduleCounter.toString());
+}
+
+// Função para carregar os dados do localStorage
+function loadData() {
+    const savedData = localStorage.getItem('savedSchedules');
+    const savedCounter = localStorage.getItem('savedScheduleCounter');
+    
+    if (savedData) {
+        schedules = JSON.parse(savedData);
+        scheduleCounter = savedCounter ? parseInt(savedCounter) : schedules.length;
+        return true;
+    }
+    return false;
+}
+
+// Função para limpar os dados salvos
+function clearSavedData() {
+    localStorage.removeItem('savedSchedules');
+    localStorage.removeItem('savedScheduleCounter');
+}
 
 // Função para criar uma nova grade de horários
 function createNewSchedule() {
@@ -901,6 +955,7 @@ function togglePin(classId, scheduleIndex) {
     const cls = findClassById(classId, scheduleIndex);
     if (cls) {
         cls.pinned = !cls.pinned;
+        saveData(); 
         renderSchedules();
     }
 }
@@ -916,6 +971,7 @@ function deleteClass(classId, scheduleIndex) {
                 break;
             }
         }
+        saveData(); 
         renderSchedules();
     }
 }
@@ -1043,6 +1099,7 @@ function resetSchedule() {
             });
         }
         colorMap = {};
+        saveData(); // Salva o estado resetado
         renderSchedules();
     }
 }
@@ -1263,11 +1320,118 @@ function exportAllToPDF() {
 
     doc.save(`Todas_Agendas_${new Date().toISOString().split('T')[0]}.pdf`);
 }
+//##################### Function to calculate statistics
+function calculateTotalClassTime() {
+    let totalMinutes = 0;
+    schedules.forEach(schedule => {
+        schedule.scheduleData.forEach(period => {
+            totalMinutes += config.timeInterval; // Assuming config.timeInterval is in minutes
+        });
+    });
+    return totalMinutes;
+}
 
+function calculateClassTimeBySchedule() {
+    const scheduleTimes = {};
+    schedules.forEach(schedule => {
+        scheduleTimes[schedule.name] = schedule.scheduleData.length * config.timeInterval;
+    });
+    return scheduleTimes;
+}
+
+function calculateClassTimeByTeacher() {
+    const teacherTimes = {};
+    schedules.forEach(schedule => {
+        schedule.scheduleData.forEach(period => {
+            period.classes.forEach(cls => {
+                if (cls && cls.professor) {
+                    teacherTimes[cls.professor] = (teacherTimes[cls.professor] || 0) + config.timeInterval;
+                }
+            });
+        });
+    });
+    return teacherTimes;
+}
+
+function calculateClassTimeByTeacherBySchedule() {
+    const teacherScheduleTimes = {};
+    schedules.forEach(schedule => {
+        teacherScheduleTimes[schedule.name] = {};
+        schedule.scheduleData.forEach(period => {
+            period.classes.forEach(cls => {
+                if (cls && cls.professor) {
+                    teacherScheduleTimes[schedule.name][cls.professor] =
+                        (teacherScheduleTimes[schedule.name][cls.professor] || 0) + config.timeInterval;
+                }
+            });
+        });
+    });
+    return teacherScheduleTimes;
+}
+
+//Ajustes do Zoom
+let currentZoom = 1; // 100%
+
+function initZoomControls() {
+    document.getElementById('zoom-out').addEventListener('click', () => adjustZoom(-0.1));
+    document.getElementById('zoom-in').addEventListener('click', () => adjustZoom(0.1));
+    
+    // Atualiza o nível de zoom exibido
+    updateZoomDisplay();
+}
+
+function adjustZoom(amount) {
+    currentZoom = Math.max(0.5, Math.min(1.5, currentZoom + amount)); // Limita entre 50% e 150%
+    applyZoom();
+    updateZoomDisplay();
+}
+
+function applyZoom() {
+    const schedulesContainer = document.getElementById('schedules-container');
+    schedulesContainer.style.transform = `scale(${currentZoom})`;
+    schedulesContainer.style.transformOrigin = 'top center';
+    
+    // Ajusta o espaçamento para acomodar o zoom
+    schedulesContainer.style.margin = `${20 * (1 - currentZoom)}px auto`;
+    schedulesContainer.style.width = `${100 / currentZoom}%`;
+}
+
+function updateZoomDisplay() {
+    document.getElementById('zoom-level').textContent = `${Math.round(currentZoom * 100)}%`;
+}
 
 //#####################
 
 function init() {
+
+ const hasSavedData = localStorage.getItem('savedSchedules') !== null;
+
+if (hasSavedData) {
+    if (confirm('Dados da sessão anterior encontrados. Deseja carregá-los?')) {
+        try {
+            const loaded = loadData();
+            if (loaded) {
+                scheduleCounter = schedules.reduce((max, schedule) => {
+                    const num = parseInt(schedule.name.replace('Agenda ', '')) || 0;
+                    return Math.max(max, num);
+                }, 0);
+                
+                renderSchedules();
+                setupEventListeners();
+                return;
+            }
+        } catch (e) {
+            console.error('Erro ao carregar dados:', e);
+        }
+    }
+    clearSavedData();
+}
+
+
+    document.addEventListener('click', () => setTimeout(saveData, 100));
+    document.addEventListener('keyup', () => setTimeout(saveData, 100));
+    document.addEventListener('change', () => setTimeout(saveData, 100));
+
     createNewSchedule(); // Cria a primeira grade ao carregar
     document.getElementById('add-schedule-btn').addEventListener('click', createNewSchedule);
     document.getElementById('reset-btn').addEventListener('click', resetSchedule);
@@ -1279,6 +1443,8 @@ const agendaNameBox = document.getElementById('agenda-name-box');
 const agendaNameText = document.getElementById('agenda-name-text');
 const schedulesContainer = document.getElementById('schedules-container');
 const schedules = document.querySelectorAll('.schedule'); // Seleciona todos os elementos com a classe 'schedule'
+
+ initZoomControls();
 
 function updateAgendaNameBox() {
     const agendaNameText = document.getElementById('agenda-name-text');
@@ -1324,6 +1490,87 @@ window.addEventListener('scroll', updateAgendaNameBox);
 
 // Atualiza o nome da agenda inicialmente
 updateAgendaNameBox();
+
+//Event Listener para geração das estatísticas
+
+document.getElementById('show-stats-btn').addEventListener('click', showScheduleStatistics);
+
+function showScheduleStatistics() {
+    const statsWindow = window.open('', '_blank');
+    if (!statsWindow) {
+        alert('Por favor, permita pop-ups para visualizar as estatísticas.');
+        return;
+    }
+
+    statsWindow.document.write('<html><head><title>Estatísticas do Horário</title>');
+    statsWindow.document.write('<style>');
+    statsWindow.document.write('body { font-family: Arial, sans-serif; }');
+    statsWindow.document.write('h1 { text-align: center; }');
+    statsWindow.document.write('table { width: 80%; margin: 20px auto; border-collapse: collapse; }');
+    statsWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }');
+    statsWindow.document.write('th { background-color: #f2f2f2; }');
+    statsWindow.document.write('</style>');
+    statsWindow.document.write('</head><body>');
+    statsWindow.document.write('<h1>Estatísticas do Horário</h1>');
+
+    // Tempo Total de Aula
+    statsWindow.document.write('<h2>Tempo Total de Aula</h2>');
+    const totalMinutes = calculateTotalClassTime();
+    const { hours, minutes } = minutesToHoursMinutes(totalMinutes);
+    statsWindow.document.write(`<p>Tempo total: ${hours} horas e ${minutes} minutos</p>`);
+
+    // Tempo de Aula por Agenda
+    statsWindow.document.write('<h2>Tempo de Aula por Agenda</h2>');
+    const classTimeBySchedule = calculateClassTimeBySchedule();
+    statsWindow.document.write('<table><thead><tr><th>Agenda</th><th>Tempo Total</th></tr></thead><tbody>');
+    for (const schedule in classTimeBySchedule) {
+        const { hours, minutes } = minutesToHoursMinutes(classTimeBySchedule[schedule]);
+        statsWindow.document.write(`<tr><td>${schedule}</td><td>${hours} horas e ${minutes} minutos</td></tr>`);
+    }
+    statsWindow.document.write('</tbody></table>');
+
+    // Tempo de Aula por Professor
+    statsWindow.document.write('<h2>Tempo de Aula por Professor</h2>');
+    const classTimeByTeacher = calculateClassTimeByTeacher();
+    statsWindow.document.write('<table><thead><tr><th>Professor</th><th>Tempo Total</th></tr></thead><tbody>');
+    for (const teacher in classTimeByTeacher) {
+        const { hours, minutes } = minutesToHoursMinutes(classTimeByTeacher[teacher]);
+        statsWindow.document.write(`<tr><td>${teacher}</td><td>${hours} horas e ${minutes}</td></tr>`);
+    }
+    statsWindow.document.write('</tbody></table>');
+
+    // Tempo de Aula por Professor por Agenda
+    statsWindow.document.write('<h2>Tempo de Aula por Professor por Agenda</h2>');
+    for (const schedule in calculateClassTimeByTeacherBySchedule()) {
+        statsWindow.document.write(`<h3>${schedule}</h3>`);
+        const timeByTeacher = calculateClassTimeByTeacherBySchedule()[schedule];
+        if (Object.keys(timeByTeacher).length > 0) {
+            statsWindow.document.write('<table><thead><tr><th>Professor</th><th>Tempo Total</th></tr></thead><tbody>');
+            for (const teacher in timeByTeacher) {
+                const { hours, minutes } = minutesToHoursMinutes(timeByTeacher[teacher]);
+                statsWindow.document.write(`<tr><td>${teacher}</td><td>${hours} horas e ${minutes}</td></tr>`);
+            }
+            statsWindow.document.write('</tbody></table>');
+        } else {
+            statsWindow.document.write('<p>Nenhum dado de professor para esta agenda.</p>');
+        }
+    }
+
+    statsWindow.document.write('</body></html>');
+    statsWindow.document.close();
+}
+
+// Helper function to convert minutes to hours and minutes
+function minutesToHoursMinutes(totalMinutes) {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return { hours, minutes };
+}
+
+//##################################
+
+
+
 }
 
 
