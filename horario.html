@@ -322,7 +322,39 @@
                 margin: 5px 0;
             }
             
-            .schedule-grid {
+            .schedule-grfunction duplicateClass(classId, scheduleIndex) {
+    const original = findClassById(classId, scheduleIndex);
+    if (!original) return;
+
+    const currentScheduleData = schedules[scheduleIndex].scheduleData;
+    let duplicated = false;
+
+    // Procura por células vazias em todas as linhas existentes
+    for (let row = 0; row < currentScheduleData.length; row++) {
+        for (let col = 0; col < config.days.length; col++) {
+            if (!currentScheduleData[row].classes[col]) {
+                // Encontrou uma célula vazia - faz a duplicação
+                currentScheduleData[row].classes[col] = {
+                    ...original,
+                    id: `class-${row}-${col}-${Date.now()}`,
+                    pinned: false,
+                    professor: original.professor,
+                    hasConflict: original.hasConflict
+                };
+
+                duplicated = true;
+                renderSchedules();
+                return; // Sai da função após duplicar
+            }
+        }
+    }
+
+    // Se não encontrou células vazias
+    if (!duplicated) {
+        alert('Não há células vazias disponíveis.\nPor favor, delete uma aula antes de duplicar.');
+    }
+}
+id {
                 grid-template-columns: repeat(1, 1fr);
                 margin: 10px;
             }
@@ -978,39 +1010,38 @@ function deleteClass(classId, scheduleIndex) {
 
 // Duplicar aula
 function duplicateClass(classId, scheduleIndex) {
-    const original = findClassById(classId, scheduleIndex);
-    if (!original) return;
+    const original = findClassById(classId, scheduleIndex);
+    if (!original) return;
 
-    const currentScheduleData = schedules[scheduleIndex].scheduleData;
-    let duplicated = false;
+    const currentScheduleData = schedules[scheduleIndex].scheduleData;
+    let duplicated = false;
 
-    // Encontra próxima vaga vazia na agenda atual
-    for (let row = 0; row < currentScheduleData.length; row++) {
-        for (let col = 0; col < config.days.length; col++) {
-            if (!currentScheduleData[row].classes[col]) {
-                currentScheduleData[row].classes[col] = {
-                    ...original,
-                    id: `class-${row}-${col}-${Date.now()}`,
-                    pinned: false,
-                    professor: original.professor, // Mantém o professor original na duplicação
-                    hasConflict: original.hasConflict // Copia o status de conflito
-                };
+    // Procura por células vazias em todas as linhas existentes
+    for (let row = 0; row < currentScheduleData.length; row++) {
+        for (let col = 0; col < config.days.length; col++) {
+            if (!currentScheduleData[row].classes[col]) {
+                // Encontrou uma célula vazia - faz a duplicação
+                currentScheduleData[row].classes[col] = {
+                    ...original,
+                    id: `class-${row}-${col}-${Date.now()}`,
+                    pinned: false,
+                    professor: original.professor,
+                    hasConflict: original.hasConflict
+                };
 
-                duplicated = true;
-                break;
-            }
-        }
-        if (duplicated) break;
-    }
+                duplicated = true;
+                renderSchedules();
+                return; // Sai da função após duplicar
+            }
+        }
+    }
 
-    // Se não encontrou vaga, adiciona nova linha na agenda atual
-    if (!duplicated) {
-        addTimeSlot(scheduleIndex);
-        // A duplicação ocorrerá na próxima renderização
-    }
-
-    renderSchedules();
+    // Se não encontrou células vazias
+    if (!duplicated) {
+        alert('Não há células vazias disponíveis.\nPor favor, delete uma aula antes de duplicar.');
+    }
 }
+
 
 // Adicionar novo horário a uma grade específica
 function addTimeSlot(scheduleIndex) {
