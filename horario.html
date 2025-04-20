@@ -1432,48 +1432,126 @@ function updateZoomDisplay() {
 }
 
 //#####################
-
 function init() {
-
- const hasSavedData = localStorage.getItem('savedSchedules') !== null;
-
-if (hasSavedData) {
-    if (confirm('Dados da sessão anterior encontrados. Deseja carregá-los?')) {
-        try {
-            const loaded = loadData();
-            if (loaded) {
-                scheduleCounter = schedules.reduce((max, schedule) => {
-                    const num = parseInt(schedule.name.replace('Agenda ', '')) || 0;
-                    return Math.max(max, num);
-                }, 0);
-                
-                renderSchedules();
-                setupEventListeners();
-                return;
-            }
-        } catch (e) {
-            console.error('Erro ao carregar dados:', e);
-        }
+    // Initialize global variables
+    schedules = [];
+    scheduleCounter = 0;
+    currentScheduleIndex = 0;
+    
+    // Set up event listeners (these should work regardless of data state)
+    setupCoreEventListeners();
+    initZoomControls();
+    
+    // Try to load saved data
+    if (tryLoadSavedData()) {
+        return; // Exit if we successfully loaded data
     }
-    clearSavedData();
-}
+    
+    // If no saved data or load failed, create default schedule
+    createDefaultSchedule();
 
 
+function setupCoreEventListeners() {
     document.addEventListener('click', () => setTimeout(saveData, 100));
     document.addEventListener('keyup', () => setTimeout(saveData, 100));
     document.addEventListener('change', () => setTimeout(saveData, 100));
-
-    createNewSchedule(); // Cria a primeira grade ao carregar
+    
     document.getElementById('add-schedule-btn').addEventListener('click', createNewSchedule);
     document.getElementById('reset-btn').addEventListener('click', resetSchedule);
-     document.getElementById('export-excel').addEventListener('click', exportAllToExcel);
+    document.getElementById('export-excel').addEventListener('click', exportAllToExcel);
     document.getElementById('export-pdf').addEventListener('click', exportAllToPDF);
+    document.getElementById('show-stats-btn').addEventListener('click', showScheduleStatistics);
     
-    //##########################
-const agendaNameBox = document.getElementById('agenda-name-box');
-const agendaNameText = document.getElementById('agenda-name-text');
-const schedulesContainer = document.getElementById('schedules-container');
-const schedules = document.querySelectorAll('.schedule'); // Seleciona todos os elementos com a classe 'schedule'
+    // Setup agenda name box functionality
+    window.addEventListener('scroll', updateAgendaNameBox);
+}
+
+function tryLoadSavedData() {
+    const hasSavedData = localStorage.getItem('savedSchedules') !== null;
+    
+    if (!hasSavedData) {
+        return false;
+    }
+    
+    if (confirm('Dados da sessão anterior encontrados. Deseja carregá-los?')) {
+        try {
+            if (loadData() && schedules.length > 0) {
+                // Update counter based on existing schedules
+                updateScheduleCounter();
+                renderSchedules();
+                setupScheduleEventListeners();
+                updateAgendaNameBox();
+                return true;
+            }
+        } catch (e) {
+            console.error('Erro ao carregar dados:', e);
+            // Fall through to create default schedule
+        }
+    }
+    
+    // If we get here, either user declined or load failed
+    clearSavedData();
+    return false;
+}
+
+function updateScheduleCounter() {
+    // Find the highest numbered schedule
+    let maxNumber = 0;
+    schedules.forEach(schedule => {
+        const numMatch = schedule.name.match(/\d+$/);
+        if (numMatch) {
+            const num = parseInt(numMatch[0]);
+            if (num > maxNumber) {
+                maxNumber = num;
+            }
+        }
+    });
+    scheduleCounter = maxNumber > 0 ? maxNumber : schedules.length;
+}
+
+function createDefaultSchedule() {
+    const newSchedule = {
+        id: `schedule-${Date.now()}`,
+        name: "Agenda 1",
+        scheduleData: []
+    };
+
+    // Create initial time slots
+    const [hours, minutes] = config.startTime.split(':').map(Number);
+    for (let i = 0; i < config.initialPeriods; i++) {
+        const startHours = hours + Math.floor((i * config.timeInterval) / 60);
+        const startMinutes = (minutes + (i * config.timeInterval) % 60);
+        const startTime = `${String(startHours).padStart(2, '0')}:${String(startMinutes).padStart(2, '0')}`;
+        const endTime = calculateEndTime(startTime);
+
+        newSchedule.scheduleData.push({
+            id: `period-${i}`,
+            time: `${startTime} - ${endTime}`,
+            classes: Array(config.days.length).fill().map((_, j) => ({
+                id: `class-${i}-${j}`,
+                name: '',
+                pinned: false,
+                color: config.defaultColors[(i + j) % config.defaultColors.length],
+                professor: '',
+                hasConflict: false
+            }))
+        });
+    }
+
+    schedules = [newSchedule];
+    scheduleCounter = 1;
+    renderSchedules();
+    setupScheduleEventListeners();
+    updateAgendaNameBox();
+}
+
+function setupScheduleEventListeners() {
+    // Setup listeners for each schedule
+    document.querySelectorAll('.schedule').forEach(schedule => {
+        const grid = schedule.querySelector('.schedule-grid');
+        if (grid) initDragAndDrop(grid);
+    });
+}
 
  initZoomControls();
 
@@ -1606,6 +1684,7 @@ function minutesToHoursMinutes(totalMinutes) {
 
 
 init();    
+  
     </script>
 </body>
 </html>
