@@ -1535,7 +1535,7 @@ function highlightConflicts() {
     });
 }
     // Exportar para PDF da grade específica
-    function exportToPDF(scheduleIndex) {
+function exportToPDF(scheduleIndex) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({
         orientation: 'landscape',
@@ -1551,6 +1551,8 @@ function highlightConflicts() {
     // Configurações de estilo
     const mainColor = [0, 77, 77]; // Cor principal #004d4d
     const margin = 10;
+    const pageWidth = doc.internal.pageSize.width;
+    const usableWidth = pageWidth - (margin * 2);
     
     // Cabeçalho
     doc.setFontSize(16);
@@ -1558,7 +1560,7 @@ function highlightConflicts() {
     doc.text(schedule.name, margin, margin);
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Gerado em: ${new Date().toLocaleDateString()}`, doc.internal.pageSize.width - margin - 40, margin);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString()}`, pageWidth - margin - 40, margin);
 
     // Preparar dados
     const headers = ['Horário', ...config.days];
@@ -1596,7 +1598,28 @@ function highlightConflicts() {
         body.push(row);
     });
 
-    // Gerar tabela
+    // Calculate column widths
+    const timeColumnWidth = 18; // Fixed width for time column
+    const dayColumnsWidth = usableWidth - timeColumnWidth;
+    const dayColumnWidth = dayColumnsWidth / config.days.length;
+    
+    // Generate column styles
+    const columnStyles = {
+        0: { 
+            cellWidth: timeColumnWidth,
+            fontStyle: 'bold' 
+        }
+    };
+    
+    // Add styles for each day column
+    for (let i = 1; i <= config.days.length; i++) {
+        columnStyles[i] = { 
+            cellWidth: dayColumnWidth,
+            minCellHeight: 10
+        };
+    }
+
+    // Generate table
     doc.autoTable({
         startY: margin + 10,
         head: [headers],
@@ -1606,30 +1629,34 @@ function highlightConflicts() {
             fillColor: mainColor,
             textColor: 255,
             fontSize: 10,
-            cellPadding: 3
+            cellPadding: 3,
+            halign: 'center'
         },
         bodyStyles: {
             fontSize: 8,
             cellPadding: 2,
             lineColor: [200, 200, 200],
-            textColor: [0, 0, 0]
+            textColor: [0, 0, 0],
+            halign: 'center',
+            valign: 'middle'
         },
-        columnStyles: {
-            0: { cellWidth: 18 }, // Coluna de horários
-            ...Object.fromEntries(
-                Array.from({ length: config.days.length }, (_, i) => 
-                    [i + 1, { cellWidth: 25 }]
-                )
-            )
+        columnStyles: columnStyles,
+        margin: { 
+            top: margin + 10,
+            left: margin,
+            right: margin
         },
-        margin: { top: margin + 10 },
+        styles: {
+            overflow: 'linebreak',
+            lineWidth: 0.2
+        },
         didDrawPage: function(data) {
-            // Adiciona número de página
+            // Add page number
             doc.setFontSize(10);
             doc.setTextColor(100);
             doc.text(
-                `Página ${data.pageCount}`,
-                doc.internal.pageSize.width - 15,
+                `Página ${data.pageNumber}`,
+                pageWidth - 15,
                 doc.internal.pageSize.height - 5
             );
         }
