@@ -1678,6 +1678,8 @@ function exportAllToPDF() {
 
     const mainColor = [0, 77, 77]; // Cor principal #004d4d
     const margin = 10;
+    const pageWidth = doc.internal.pageSize.width;
+    const usableWidth = pageWidth - (margin * 2);
     const date = new Date().toLocaleDateString();
     let currentPage = 1;
 
@@ -1694,8 +1696,8 @@ function exportAllToPDF() {
         
         doc.setFontSize(10);
         doc.setTextColor(100);
-        doc.text(`Exportado em: ${date}`, doc.internal.pageSize.width - margin - 40, margin);
-        doc.text(`Página ${currentPage}`, doc.internal.pageSize.width - 15, margin);
+        doc.text(`Exportado em: ${date}`, pageWidth - margin - 40, margin);
+        doc.text(`Página ${currentPage}`, pageWidth - 15, margin);
 
         // Preparar dados
         const headers = ['Horário', ...config.days];
@@ -1730,6 +1732,11 @@ function exportAllToPDF() {
             return row;
         });
 
+        // Calculate column widths
+        const timeColumnWidth = 22; // Increased width to prevent word break
+        const dayColumnsWidth = usableWidth - timeColumnWidth;
+        const dayColumnWidth = dayColumnsWidth / config.days.length;
+
         // Configuração da tabela
         doc.autoTable({
             startY: margin + 10,
@@ -1741,37 +1748,51 @@ function exportAllToPDF() {
                 textColor: 255,
                 fontSize: 10,
                 cellPadding: 3,
-                halign: 'center'
+                halign: 'center',
+                textOverflow: 'ellipsis', // Prevent word breaks
+                overflow: 'linebreak',
+                lineWidth: 0.5
             },
             bodyStyles: {
                 fontSize: 8,
                 cellPadding: 2,
                 lineColor: [200, 200, 200],
-                textColor: [0, 0, 0]
+                textColor: [0, 0, 0],
+                halign: 'center',
+                valign: 'middle'
             },
             columnStyles: {
                 0: { 
-                    cellWidth: 18, // Coluna de horários
+                    cellWidth: timeColumnWidth,
                     fontStyle: 'bold',
-                    halign: 'center'
+                    halign: 'center',
+                    cellPadding: { top: 3, right: 1, bottom: 3, left: 1 }
                 },
                 ...Object.fromEntries(
                     Array.from({ length: config.days.length }, (_, i) => [
                         i + 1, { 
-                            cellWidth: 25,
+                            cellWidth: dayColumnWidth,
                             minCellHeight: 8
                         }
                     ])
                 )
             },
-            margin: { top: margin + 10 },
+            margin: { 
+                top: margin + 10,
+                left: margin,
+                right: margin
+            },
+            styles: {
+                overflow: 'linebreak',
+                lineWidth: 0.2
+            },
             didDrawPage: function(data) {
                 // Rodapé com número de página
                 doc.setFontSize(10);
                 doc.setTextColor(100);
                 doc.text(
-                    `Página ${data.pageCount}`,
-                    doc.internal.pageSize.width - 15,
+                    `Página ${data.pageNumber}`,
+                    pageWidth - 15,
                     doc.internal.pageSize.height - 5
                 );
             }
