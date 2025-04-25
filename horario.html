@@ -1599,7 +1599,7 @@ function exportToPDF(scheduleIndex) {
     });
 
     // Calculate column widths
-    const timeColumnWidth = 18; // Fixed width for time column
+    const timeColumnWidth = 22; // Increased width to prevent word break
     const dayColumnsWidth = usableWidth - timeColumnWidth;
     const dayColumnWidth = dayColumnsWidth / config.days.length;
     
@@ -1607,7 +1607,8 @@ function exportToPDF(scheduleIndex) {
     const columnStyles = {
         0: { 
             cellWidth: timeColumnWidth,
-            fontStyle: 'bold' 
+            fontStyle: 'bold',
+            cellPadding: { top: 3, right: 1, bottom: 3, left: 1 } // Adjusted padding
         }
     };
     
@@ -1630,7 +1631,10 @@ function exportToPDF(scheduleIndex) {
             textColor: 255,
             fontSize: 10,
             cellPadding: 3,
-            halign: 'center'
+            halign: 'center',
+            textOverflow: 'ellipsis', // Prevent word breaks
+            overflow: 'linebreak',
+            lineWidth: 0.5
         },
         bodyStyles: {
             fontSize: 8,
