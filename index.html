@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yaiah - Ferramentas Educacionais</title>
+    <style>
+        /* ===== Modern Color Palette ===== */
+        :root {
+          --primary-soft: #4a9c8d;     /* Soft teal primary */
+          --primary-light: #e0f2ef;    /* Very light teal */
+          --primary-dark: #1a6b5e;     /* Darker teal for contrast */
+          --accent: #f5a623;           /* Warm accent for CTAs */
+          --text-dark: #2d3748;        /* Dark gray for text */
+          --text-medium: #4a5568;      /* Medium gray */
+          --text-light: #f8f9fa;       /* Light text on dark */
+          --header-bg: #004d4d;
+          --gray-bg: #f7fafc;
+          --text-menu: #f0ffff;        /* Light gray background */
+          
+          /* Spacing */
+          --rounded-sm: 6px;
+          --rounded-md: 12px;
+          --rounded-lg: 18px;
+          --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+          --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* ===== Base Styles ===== */
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          background-color: var(--gray-bg);
+          color: var(--text-dark);
+          line-height: 1.6;
+        }
+
+        h1, h2, h3, h4 {
+          font-weight: 700;
+          line-height: 1.2;
+          margin-bottom: 1.25rem;
+          color: var(--primary-dark);
+        }
+
+        h1 { font-size: 2.5rem; }
+        h2 { font-size: 2rem; }
+        h3 { font-size: 1.5rem; }
+
+        /* ===== Layout ===== */
+        .container {
+          width: 100%;
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 1.5rem;
+        }
+
+        section {
+          padding: 5rem 0;
+        }
+
+        /* ===== Fullscreen Image Sections ===== */
+        .fullscreen-image {
+          width: 100%;
+          height: 100vh;
+          min-height: 600px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .image-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(26, 107, 94, 0.3);
+          display: flex;
+          align-items: center;
+        }
+
+        .image-content {
+          max-width: 600px;
+          padding: 2rem;
+          background: rgba(255,255,255,0.9);
+          border-radius: var(--rounded-md);
+          margin-left: 10%;
+          box-shadow: var(--shadow-md);
+        }
+
+        /* ===== Header ===== */
+        header {
+          background-color: var(--header-bg);
+          box-shadow: var(--shadow-sm);
+          position: fixed;
+          width: 100%;
+          z-index: 1000;
+        }
+
+        .header-content {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem 0;
+        }
+
+        .logo {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .logo img {
+          height: 40px;
+        }
+
+        /* ===== Tools Section ===== */
+        .tools-section {
+          background-color: var(--gray-bg);
+        }
+
+        .tools-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 2rem;
+          margin-top: 3rem;
+        }
+
+        .tool-card {
+          background-color: white;
+          border-radius: var(--rounded-md);
+          padding: 2rem;
+          box-shadow: var(--shadow-sm);
+          transition: all 0.3s;
+          text-align: center;
+        }
+
+        .tool-card:hover {
+          transform: translateY(-5px);
+          box-shadow: var(--shadow-md);
+        }
+
+        .tool-icon {
+          font-size: 3rem;
+          margin-bottom: 1rem;
+          color: var(--primary-soft);
+        }
+
+        /* ===== Buttons ===== */
+        .button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.8rem 1.75rem;
+          border-radius: var(--rounded-sm);
+          font-weight: 500;
+          text-decoration: none;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+        }
+
+        .button-primary {
+          background-color: var(--primary-soft);
+          color: white;
+          box-shadow: 0 4px 6px rgba(74, 156, 141, 0.2);
+        }
+
+        .button-primary:hover {
+          background-color: var(--primary-dark);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 12px rgba(74, 156, 141, 0.25);
+        }
+
+        .button-secondary {
+          border: 1px solid var(--primary-soft);
+          color: var(--primary-soft);
+          background-color: transparent;
+        }
+
+        .button-secondary:hover {
+          background-color: var(--primary-light);
+        }
+
+        /* ===== Donation Section ===== */
+        .donation-section {
+          background-color: white;
+          text-align: center;
+        }
+
+        .donation-methods {
+          display: flex;
+          justify-content: center;
+          gap: 3rem;
+          flex-wrap: wrap;
+          margin-top: 2rem;
+        }
+
+        .donation-method {
+          background: var(--primary-light);
+          padding: 2rem;
+          border-radius: var(--rounded-md);
+          max-width: 400px;
+        }
+
+        /* ===== About Section ===== */
+        .about-section {
+          text-align: center;
+          padding: 5rem 0;
+        }
+
+        /* ===== Contact Section ===== */
+        .contact-section {
+          background-color: var(--gray-bg);
+          text-align: center;
+          padding: 5rem 0;
+        }
+
+        .contact-email {
+          display: inline-block;
+          background-color: var(--primary-light);
+          padding: 1rem 2rem;
+          border-radius: var(--rounded-md);
+          font-family: monospace;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .contact-email:hover {
+          background-color: var(--primary-soft);
+          color: white;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+          .header-content {
+            flex-direction: column;
+            gap: 1rem;
+          }
+          
+          .image-content {
+            margin: 0 auto;
+            width: 90%;
+          }
+          
+          .donation-methods {
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+          }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container header-content">
+            <div class="logo">
+                <img src="https://yaiah.github.io/conversor/logoyaiah2.png" alt="Yaiah Logo" width="120" height="40">
+            </div>
+            <nav>
+                <ul style="display: flex; list-style: none; gap: 1.5rem;">
+                    <li><a href="#ferramentas" style="color: #f0ffff; text-decoration: none;">Ferramentas</a></li>
+                    <li><a href="#sobre" style="color: #f0ffff; text-decoration: none;">Sobre</a></li>
+                    <li><a href="#doacao" style="color: #f0ffff; text-decoration: none;">Apoie</a></li>
+                    <li><a href="#contato" style="color: #f0ffff; text-decoration: none;">Contato</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- Seção com Imagem de Fundo -->
+        <section class="fullscreen-image" style="background: url('https://images.unsplash.com/photo-1588072432836-e10032774350?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80') center/cover;">
+            <div class="image-overlay">
+                <div class="image-content">
+                    <h2>Yaiah: Transformar, Educar</h2>
+                    <p>Simplicidade e utilidade para educadores. Desenvolvemos com paixão</p>
+                    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                        <a href="#ferramentas" class="button button-primary">Conheça Nossas Ferramentas</a>
+                        <a href="#doacao" class="button button-secondary">Apoie o Projeto</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Seção Sobre -->
+        <section id="sobre" class="about-section">
+            <div class="container">
+            <div class="tool-card">
+                <h2>Yaiah é grande mãe.</h2>
+                <p style="color: #ababab;">Ela quer facilitar o dia a dia daqueles que dedicam suas vidas à educação.</p>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção Ferramentas -->
+        <section id="ferramentas" class="tools-section">
+            <div class="container">
+                <h2 style="text-align: center;">Nossas Ferramentas</h2>
+                <p style="text-align: center; max-width: 700px; margin: 0 auto 3rem; color: var(--text-medium);">
+                    Considere apoiar nosso trabalho. Desenvolver as ferramentas que disponibilizamos gratuitamente implica em horas de trabalho e custos de manutenção. Se elas forem úteis para você, doe e ajude-nos a mantê-las online e livre de anúncios. 
+                </p>
+                
+                <div class="tools-grid">
+                    <div class="tool-card">
+                        <div class="tool-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <h3>Conversor hora aula hora relógio</h3>
+                        <p style="color: var(--text-medium); margin-bottom: 1.5rem;">
+                            Transforme de forma rápida e eficiente
+                        </p>
+                        <a href="https://yaiah.github.io/conversor/" class="button button-primary" target="_blank">Acessar Conversor</a>
+                    </div>
+                    
+                    <div class="tool-card">
+                        <div class="tool-icon">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <h3>Planejador de horário de aulas</h3>
+                        <p style="color: var(--text-medium); margin-bottom: 1.5rem;">
+                            Organize as disicplinas sem confusão
+                        </p>
+                        <a href="https://yaiah.github.io/agendador/" class="button button-primary" target="_blank">Acessar planejador</a>
+                    </div>
+                    
+                    <div class="tool-card">
+                        <div class="tool-icon">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <h3>Gerador de Cronograma</h3>
+                        <p style="color: var(--text-medium); margin-bottom: 1.5rem;">
+                            Organize suas aulas com facilidade e eficiência
+                        </p>
+                        <a href="https://yaiah.github.io/conversor/cronograma.html/" class="button button-primary" target="_blank">Acessar Gerador</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Seção Doação -->
+        <section id="doacao" class="donation-section">
+            <div class="container">
+                <h2>Apoie nossos projetos</h2>
+                <p style="max-width: 700px; margin: 0 auto 2rem; color: var(--text-medium);">
+                    Desenvolvemos estas ferramentas voluntariamente. Sua doação é crucial para continuarmos o desenvolvimento e manter a plataforma livre de anúncios.
+                </p>
+                
+                <div class="donation-methods">
+                    <div class="donation-method">
+                        <h3>.:: Doação via PayPal</h3>
+                        <p>Você pode doar com segurança pelo PayPal:</p>
+                        <form action="https://www.paypal.com/donate" method="post" target="_blank">
+                            <input type="hidden" name="business" value="WFGYNTX4NEZ5A">
+                            <input type="hidden" name="no_recurring" value="0">
+                            <input type="hidden" name="item_name" value="Doe e ajude a manter este site atualizado e em funcionamento.">
+                            <input type="hidden" name="currency_code" value="BRL">
+                            <input type="image" src="https://www.paypalobjects.com/pt_BR/i/btn/btn_donate_SM.gif" border="0" name="submit" title="PayPal - seguro, um modo fácil de pagar online!" alt="Faça doações com o botão do PayPal">
+                            <img alt="" border="0" src="https://www.paypal.com/pt_BR/i/scr/pixel.gif" width="1" height="1">
+                        </form>
+                    </div>
+                    
+                    <div class="donation-method">
+                        <h3>.:: Doação via PIX</h3>
+                        <p>Clique no botão abaixo para copiar automaticamente nossa chave PIX:</p>
+                        <button onclick="copyKey()" class="button button-primary" style="width: 100%; margin: 1rem 0; padding: 1rem; font-size: 1rem; cursor: pointer;">
+                            <i class="fas fa-copy" style="margin-right: 8px;"></i> Copiar Chave PIX
+                        </button>
+                        <p style="font-size: 0.9rem; margin-top: 1rem;">
+                            (Chave PIX aleatória - 55bd3b2f-f156-48b2-b05d-533a810464d3)
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Seção Contato -->
+        <section id="contato" class="contact-section">
+            <div class="container">
+                <h2>Contato</h2>
+                <p style="color: var(--text-medium); margin-bottom: 1.5rem;">Entre em contato conosco:</p>
+                <div id="contact-email" class="contact-email" onclick="revealEmail()">
+                    Clique para revelar e-mail
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer style="background-color: var(--primary-dark); color: var(--white); padding: 3rem 0;">
+        <div class="container">
+            <div style="text-align: center;">
+                <img src="https://yaiah.github.io/conversor/logoyaiah2.png" alt="Yaiah" width="120" style="margin-bottom: 1rem;">
+                <p>Ferramentas educacionais desenvolvidas com paixão</p>
+            </div>
+            <div style="margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
+                <p>© 2023 Yaiah. Projeto voluntário sem fins lucrativos.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function copyKey() {
+            const key = "55bd3b2f-f156-48b2-b05d-533a810464d3";
+            navigator.clipboard.writeText(key)
+                .then(() => {
+                    alert("Chave PIX copiada! Basta colar o código copiado no app do seu banco!");
+                })
+                .catch(() => {
+                    alert("Erro ao copiar a chave.");
+                });
+        }
+
+        function revealEmail() {
+            const emailElement = document.getElementById('contact-email');
+            const emailParts = ["aulasconrado", "@", "gmail.com"];
+            const email = emailParts.join('');
+            
+            const mailtoLink = document.createElement('a');
+            mailtoLink.href = "mailto:" + email;
+            mailtoLink.textContent = email;
+            mailtoLink.className = "contact-email";
+            
+            emailElement.parentNode.replaceChild(mailtoLink, emailElement);
+            
+            navigator.clipboard.writeText(email)
+                .then(() => {
+                    alert("E-mail copiado para a área de transferência!");
+                });
+        }
+    </script>
+</body>
+</html>
