@@ -1,0 +1,436 @@
+/* Variáveis de cores Yaiah */
+:root {
+    --header-bg: #004d4d;
+    --header-text: #ffffff;
+    --nav-bg: #003333;
+    --primary: #004d4d;
+    --secondary: #006666;
+    --accent: #95C9A0;
+    --light: #f4f4f4;
+    --dark: #333333;
+    --success: #217345;
+    --danger: #4c9900;
+    --warning: #ff9800;
+    --empty: #e2e7e8;
+}
+
+/* Reset e estilos base */
+body, html {
+    height: 100%;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--light);
+    color: var(--dark);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: white;
+    padding: 0;
+}
+
+/* Cabeçalho Yaiah */
+header {
+    background-color: var(--header-bg);
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    height: 45px;
+}
+
+h1 {
+    color: white;
+    text-align: center;
+    margin: 0;
+    padding: 15px 0;
+    font-size: 1.5rem;
+}
+
+/* Navegação */
+nav {
+    background-color: var(--nav-bg);
+    padding: 10px;
+}
+
+nav ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+nav ul li {
+    margin: 0 15px;
+}
+
+nav ul li a {
+    color: white;
+    text-decoration: none;
+    font-size: 16px;
+    padding: 5px 0;
+    display: block;
+}
+
+nav ul li a:hover {
+    text-decoration: underline;
+}
+
+/* Controles */
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: var(--nav-bg);
+    color: white;
+    margin: 20px 0;
+}
+
+/* Estilos Yaia para o conteúdo principal */
+.yaia-card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+    margin: 20px;
+}
+
+.yaia-title {
+    color: var(--primary);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+}
+
+.yaia-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.yaia-form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.yaia-input {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.yaia-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(0, 77, 77, 0.2);
+}
+
+.yaia-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.yaia-select {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    background-color: white;
+}
+
+/* Botões */
+.yaia-button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.yaia-button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.yaia-primary {
+    background-color: var(--primary);
+    color: white;
+}
+
+.yaia-secondary {
+    background-color: white;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+}
+
+.yaia-success {
+    background-color: var(--success);
+    color: white;
+}
+
+.yaia-danger {
+    background-color: var(--danger);
+    color: white;
+}
+
+/* Tabela */
+.yaia-table-container {
+    margin: 2rem 0;
+    overflow-x: auto;
+}
+
+.yaia-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.yaia-table th, .yaia-table td {
+    border: 1px solid #e0e0e0;
+    padding: 8px;
+}
+
+.yaia-table th {
+    background-color: #004d4d;
+    color: white;
+}
+
+.yaia-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.yaia-table tr.feriado {
+    background-color: #e8f5e9;  !important;
+}
+
+.yaia-table tr.avaliacao {
+    background-color: #ffebee;  !important;
+}
+.textarea-container {
+    position: relative;
+    min-height: 40px;
+}
+
+.auto-expand {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    resize: none; /* Remover o redimensionamento manual */
+    overflow: hidden; /* Esconder a barra de rolagem inicial */
+}
+
+.auto-expand:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(0, 77, 77, 0.2);
+}
+
+/* Ajustes específicos para cada coluna */
+.input-conteudo, 
+.input-objetivo, 
+.input-metodo {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.input-metodo {
+    /* Estilo específico para o campo de método */
+    list-style-position: inside;
+}
+
+/* Ajuste para o campo de número */
+.input-aula {
+    width: 50px !important;
+    text-align: center;
+    padding: 8px;
+}
+
+/* Rodapé */
+footer {
+    background-color: var(--nav-bg);
+    color: white;
+    text-align: center;
+    padding: 10px;
+    margin-top: 20px;
+}
+/* ... (mantenha todos os estilos anteriores) ... */
+
+/* Ajustes específicos para as novas solicitações */
+.yaia-table th:first-child,
+.yaia-table td:first-child {
+    width: 60px; /* Largura fixa para coluna de número */
+}
+
+.input-aula {
+    width: 50px !important; /* Largura reduzida para campo de número */
+    text-align: center;
+}
+
+.input-metodo {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    list-style-position: inside;
+}
+
+.input-metodo:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(0, 77, 77, 0.2);
+}
+/* Responsividade */
+/* Estilos para o drag and drop */
+tr[draggable="true"] {
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+tr.dragging {
+    opacity: 0.5;
+    background-color: var(--accent);
+    border: 2px dashed var(--primary);
+}
+
+tr.dropzone {
+    border-top: 2px solid var(--primary);
+}
+
+/* Melhor visualização durante o arraste */
+body.dragging-active {
+    user-select: none;
+}
+
+body.dragging-active tr[draggable="true"] {
+    cursor: grabbing;
+}
+/* Estilos para drag and drop */
+tr[draggable="true"] {
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+tr.dragging {
+    opacity: 0.5;
+    background-color: #e0e0e0;
+    border: 2px dashed #004d4d;
+}
+
+tr.dropzone {
+    border-top: 2px solid #004d4d;
+}
+
+tr.dropzone-bottom {
+    border-bottom: 2px solid #004d4d;
+}
+
+body.dragging-active {
+    user-select: none;
+}
+
+body.dragging-active tr[draggable="true"] {
+    cursor: grabbing;
+}
+/* Loading state for the generate button */
+button:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+/* Holiday row styling */
+tr.feriado {
+    background-color: #e8f5e9 !important; /* Light green background */
+    position: relative;
+}
+
+tr.feriado::after {
+    content: 'Feriado';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #4caf50;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+tr.avaliacao {
+    background-color: #ffebee !important;
+    color: #d32f2f !important;
+}
+
+tr.feriado {
+    background-color: #e8f5e9 !important;
+    color: #388e3c !important;
+}
+
+tr.campo {
+    background-color: #efebe9 !important;
+    color: #5d4037 !important;
+}
+.export-options {
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+}
+
+.yaia-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.yaia-checkbox-label input {
+    width: 18px;
+    height: 18px;
+    accent-color: #004d4d;
+}
+
+@media (max-width: 768px) {
+    nav ul {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    nav ul li {
+        margin: 5px 0;
+    }
+    
+    .yaia-form-row {
+        flex-direction: column;
+    }
+    
+    .yaia-form-controls {
+        flex-direction: column;
+    }
+    
+    .yaia-export-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+}
