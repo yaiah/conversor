@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planejador de Cronograma de Aulas | Yaiah</title>
+    <meta name="description" content="Planeje o cronograma de aulas online de forma fácil e gratuita. Planejador de aulas, disciplinas e atividades acadêmicas">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <!-- Cabeçalho Yaiah -->
+    <header>
+        <img src="https://yaiah.github.io/conversor/logoyaiah2.png" alt="Yaiah" class="logo">
+        <h1>Cronograma de Aulas</h1>
+        <div></div>
+    </header>
+    
+    <nav>
+        <ul>
+            <li><a href="index.html">Início</a></li>
+            <li><a href="horario.html">App grade de aulas</a></li>
+            <li><a href="sobre.html">Sobre</a></li>
+            <li><a href="#">Contato</a></li>
+            <li><a href="doacao.html">Doe</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="controls">
+            <button id="add-schedule-btn">Adicionar Novo Cronograma</button>
+            <div id="status">Aulas planejadas: 0</div>
+        </div>
+
+        <div class="yaia-card">
+            <h1 class="yaia-title">Gerador de Cronograma de Aulas</h1>
+            
+            <div class="yaia-form-group">
+                <div class="yaia-form-row">
+                    <input type="text" id="instituicao" class="yaia-input" placeholder="Instituição">
+                    <input type="text" id="professor" class="yaia-input" placeholder="Professor">
+                </div>
+                <div class="yaia-form-row">
+                    <input type="text" id="disciplina" class="yaia-input" placeholder="Disciplina">
+                    <input type="text" id="turma" class="yaia-input" placeholder="Turma">
+                </div>
+            </div>
+
+            <div class="yaia-form-controls">
+                <div class="yaia-date-controls">
+                    <label class="yaia-label">Data Início:
+                        <input type="date" id="data-inicio" class="yaia-input">
+                    </label>
+                    <label class="yaia-label">Data Término:
+                        <input type="date" id="data-termino" class="yaia-input">
+                    </label>
+                </div>
+                <div class="yaia-period-controls">
+                    <label class="yaia-label">Periodicidade:
+                        <select id="periodicidade" class="yaia-select">
+                            <option value="semanal">Semanal</option>
+                            <option value="quinzenal">Quinzenal</option>
+                        </select>
+                 <div class="yaia-country-control">
+        <label class="yaia-label">País:
+            <select id="pais" class="yaia-select">
+                <option value="BR">Brasil</option>
+                <option value="PT">Portugal</option>
+                <option value="US">Estados Unidos</option>
+                <!-- Add more countries as needed -->
+            </select>
+        </label>
+    </div>
+</div>
+                    </label>
+                    <button id="gerar-cronograma" class="yaia-button yaia-primary">Gerar Cronograma</button>
+                </div>
+            </div>
+
+            <div class="yaia-table-container">
+                <table id="tabela-aulas" class="yaia-table" data-draggable="true">
+    <thead>
+        <tr>
+            <th style="width: 60px;">Aula</th>
+            <th style="width: 120px;">Data</th>
+            <th>Conteúdo</th>
+            <th>Objetivo</th>
+            <th>Método</th>
+            <th style="width: 100px;">Ações</th>
+        </tr>
+    </thead>
+    <tbody id="corpo-tabela">
+        <!-- Exemplo de linha -->
+        <tr>
+            <td><input type="number" value="1" class="yaia-input input-aula" min="1" max="999"></td>
+            <td><input type="date" class="yaia-input input-data"></td>
+            <td>
+                <div class="textarea-container">
+                    <textarea class="auto-expand input-conteudo" placeholder="Conteúdo programado"></textarea>
+                </div>
+            </td>
+            <td>
+                <div class="textarea-container">
+                    <textarea class="auto-expand input-objetivo" placeholder="Objetivo da aula"></textarea>
+                </div>
+            </td>
+            <td>
+                <div class="textarea-container">
+                    <input type="text" class="yaia-input input-metodo" list="metodos-didaticos" placeholder="Método didático">
+                </div>
+            </td>
+            <td><button class="yaia-button yaia-danger remover-aula">Remover</button></td>
+        </tr>
+    </tbody>
+</table>
+                <button id="adicionar-aula" class="yaia-button yaia-secondary">+ Adicionar Aula</button>
+            </div>
+
+            <div class="export-options">
+    <label class="yaia-checkbox-label">
+        <input type="checkbox" id="incluir-objetivo" checked>
+        Incluir objetivos na exportação
+    </label>
+</div>
+            <div class="yaia-export-buttons">
+                <button id="exportar-pdf" class="yaia-button yaia-success">Exportar PDF</button>
+                <button id="exportar-excel" class="yaia-button yaia-success">Exportar Excel</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2023 Yaiah. Todos os direitos reservados.</p>
+        </footer>
+    </div>
+
+    <!-- Lista de sugestões para métodos didáticos -->
+    <datalist id="metodos-didaticos">
+        <option value="Aula Expositiva">
+        <option value="Leitura e debate de Texto">
+        <option value="Filme e Debate">
+        <option value="Debate">
+        <option value="Filme">
+        <option value="Quiz">
+        <option value="Avaliação">
+        <option value="Seminário">
+        <option value="Atividade Prática">
+        <option value="Estudo de Caso">
+        <option value="Aprendizagem Baseada em Projetos">
+        <option value="Sala de Aula Invertida">
+        <option value="Discussão em Grupo">
+        <option value="Demonstração Prática">
+         <option value="Trabalho em grupo">
+         <option value="Trabalho de Campo">
+         <option value="Visita técnica">
+          <option value="Game">
+    </datalist>
+
+    <script src="script.js"></script>
+</body>
+</html>
