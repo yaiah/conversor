@@ -28,32 +28,47 @@
     </nav>
 
     <div class="container">
-        <div class="controls">
-            <button id="add-schedule-btn">Adicionar Novo Cronograma</button>
+       <!-- <div class="controls">
+            button id="add-schedule-btn">Adicionar Novo Cronograma</button>
             <div id="status">Aulas planejadas: 0</div>
-        </div>
+            
+       </div>
+-->       
 
         <div class="yaia-card">
             <h1 class="yaia-title">Gerador de Cronograma de Aulas</h1>
             
             <div class="yaia-form-group">
                 <div class="yaia-form-row">
-                    <input type="text" id="instituicao" class="yaia-input" placeholder="Instituição">
-                    <input type="text" id="professor" class="yaia-input" placeholder="Professor">
+                    <input type="text" id="instituicao" class="yaia-input" placeholder="Instituição" autocomplete="off">
+                    <input type="text" id="professor" class="yaia-input" placeholder="Professor" autocomplete="off">
                 </div>
                 <div class="yaia-form-row">
-                    <input type="text" id="disciplina" class="yaia-input" placeholder="Disciplina">
-                    <input type="text" id="turma" class="yaia-input" placeholder="Turma">
+                    <input type="text" id="disciplina" class="yaia-input" placeholder="Disciplina" autocomplete="off">
+                    <input type="text" id="turma" class="yaia-input" placeholder="Turma" autocomplete="off" required>
                 </div>
             </div>
 
             <div class="yaia-form-controls">
+            
+                <div class="yaia-weekdays-control">
+        <label class="yaia-label">Dias de Aula:</label>
+        <div class="yaia-weekdays-options">
+            <label><input type="checkbox" name="weekday" value="1"> Segunda</label>
+            <label><input type="checkbox" name="weekday" value="2"> Terça</label>
+            <label><input type="checkbox" name="weekday" value="3"> Quarta</label>
+            <label><input type="checkbox" name="weekday" value="4"> Quinta</label>
+            <label><input type="checkbox" name="weekday" value="5"> Sexta</label>
+            <label><input type="checkbox" name="weekday" value="6"> Sábado</label>
+            <label><input type="checkbox" name="weekday" value="0"> Domingo</label>
+        </div>
+    </div>
                 <div class="yaia-date-controls">
                     <label class="yaia-label">Data Início:
-                        <input type="date" id="data-inicio" class="yaia-input">
+                        <input type="date" id="data-inicio" class="yaia-input" autocomplete="off">
                     </label>
                     <label class="yaia-label">Data Término:
-                        <input type="date" id="data-termino" class="yaia-input">
+                        <input type="date" id="data-termino" class="yaia-input" autocomplete="off">
                     </label>
                 </div>
                 <div class="yaia-period-controls">
@@ -75,7 +90,7 @@
 </div>
                     </label>
                     <button id="gerar-cronograma" class="yaia-button yaia-primary">Gerar Cronograma</button>
-                </div>
+                                    </div>
             </div>
 
             <div class="yaia-table-container">
@@ -126,6 +141,7 @@
             <div class="yaia-export-buttons">
                 <button id="exportar-pdf" class="yaia-button yaia-success">Exportar PDF</button>
                 <button id="exportar-excel" class="yaia-button yaia-success">Exportar Excel</button>
+                
             </div>
         </div>
 
@@ -154,6 +170,8 @@
          <option value="Trabalho de Campo">
          <option value="Visita técnica">
           <option value="Game">
+          <option value="Revisão do conteúdo">
+          <option value="Revisão da avaliação">
     </datalist>
 
     <script src="script.js"></script>
