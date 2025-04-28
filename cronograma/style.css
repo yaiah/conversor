@@ -1,802 +1,460 @@
-/*jshint esversion: 8 */
-function formatarDataParaBR(dataISO) {
-    if (!dataISO) return '';
-    const [ano, mes, dia] = dataISO.split('-');
-    return `${dia}/${mes}/${ano}`;
+/* Variáveis de cores Yaiah */
+:root {
+    --header-bg: #004d4d;
+    --header-text: #ffffff;
+    --nav-bg: #003333;
+    --primary: #004d4d;
+    --secondary: #006666;
+    --accent: #95C9A0;
+    --light: #f4f4f4;
+    --dark: #333333;
+    --success: #217345;
+    --danger: #4c9900;
+    --warning: #ff9800;
+    --empty: #e2e7e8;
 }
-const HOLIDAY_API_URL = 'https://date.nager.at/api/v3/PublicHolidays';
-const LOCALSTORAGE_KEY = 'cronogramaYaiah';
 
-document.addEventListener('DOMContentLoaded', function() {
-    // --- Elementos do DOM ---
-    const btnGerar = document.getElementById('gerar-cronograma');
-    const btnAddAula = document.getElementById('adicionar-aula');
-    const btnExportPDF = document.getElementById('exportar-pdf');
-    const btnExportExcel = document.getElementById('exportar-excel');
-    const tabelaBody = document.getElementById('corpo-tabela');
-    const dataInicioInput = document.getElementById('data-inicio');
-    const dataTerminoInput = document.getElementById('data-termino');
-    const periodicidadeSelect = document.getElementById('periodicidade');
-    const paisSelect = document.getElementById('pais');
-    const instituicaoInput = document.getElementById('instituicao');
-    const professorInput = document.getElementById('professor');
-    const disciplinaInput = document.getElementById('disciplina');
-    const turmaInput = document.getElementById('turma');
-    const incluirObjetivoCheckbox = document.getElementById('incluir-objetivo');
-    const statusElement = document.getElementById('status');
-
-    // --- Cache de Feriados ---
-    const holidayCache = {};
-
-    // --- Variáveis de Estado ---
-    let draggedRow = null;
-
-    // --- Funções Auxiliares ---
-
-    // Função para auto-expansão dos textareas
-    function setupAutoExpand() {
-        document.querySelectorAll('.auto-expand').forEach(textarea => {
-            function ajustarAltura() {
-                textarea.style.height = 'auto';
-                textarea.style.height = (textarea.scrollHeight) + 'px';
-            }
-            // Ajustar altura inicial e ao digitar
-            textarea.addEventListener('input', ajustarAltura);
-            // Chamar uma vez para definir a altura inicial correta
-            setTimeout(ajustarAltura, 0);
-        });
-    }
-
-    // Função para buscar feriados da API ou Cache (com fallback)
-    async function getFeriadosAno(ano, pais) {
-        const cacheKey = `${pais}-${ano}`;
-        if (holidayCache[cacheKey]) {
-            return holidayCache[cacheKey];
-        }
-
-        try {
-            const response = await fetch(`${HOLIDAY_API_URL}/${ano}/${pais}`);
-            if (!response.ok) throw new Error(`API response not OK (${response.status})`);
-            const feriados = await response.json();
-            holidayCache[cacheKey] = feriados;
-            return feriados;
-        } catch (error) {
-            console.error(`Erro ao buscar feriados para ${pais}-${ano}:`, error);
-            // Fallback para feriados locais (exemplo para BR)
-            const feriadosLocais = {
-                'BR': [
-                    { date: `${ano}-01-01`, name: 'Ano Novo' },
-                    { date: `${ano}-04-21`, name: 'Tiradentes' },
-                    { date: `${ano}-05-01`, name: 'Dia do Trabalho' },
-                    { date: `${ano}-09-07`, name: 'Independência' },
-                    { date: `${ano}-10-12`, name: 'Nossa Senhora Aparecida' },
-                    { date: `${ano}-11-02`, name: 'Finados' },
-                    { date: `${ano}-11-15`, name: 'Proclamação da República' },
-                    { date: `${ano}-12-25`, name: 'Natal' }
-                    // Adicionar outros feriados fixos ou lógicas para móveis se necessário
-                ]
-                // Adicionar outros países se necessário
-            };
-            return feriadosLocais[pais] || [];
-        }
-    }
-
-    // Função para verificar se uma data específica é feriado
-    async function verificarFeriado(data, pais) {
-        try {
-            const ano = data.getFullYear();
-            // Garante que a busca ocorra apenas uma vez por ano/país
-            const feriados = await getFeriadosAno(ano, pais);
-            const dataStr = data.toISOString().split('T')[0];
-            return feriados.some(feriado => feriado.date === dataStr);
-        } catch (error) {
-            console.error('Erro ao verificar feriado:', error);
-            return false; // Considera não feriado em caso de erro
-        }
-    }
-
-    // Função para renumerar aulas na tabela
-    function renumeraAulas() {
-        const linhas = tabelaBody.querySelectorAll('tr');
-        linhas.forEach((linha, index) => {
-            const inputNum = linha.querySelector('.input-aula');
-            if (inputNum) inputNum.value = index + 1;
-        });
-        atualizarContadorAulas(); // Atualiza o contador
-    }
-
-     // Função para atualizar o contador de aulas planejadas
-     function atualizarContadorAulas() {
-        const totalAulas = tabelaBody.querySelectorAll('tr').length;
-        if (statusElement) {
-            statusElement.textContent = `Aulas planejadas: ${totalAulas}`; // [cite: 126]
-        }
-    }
-
-
-    // Função para adicionar uma linha à tabela
-    function adicionarLinha(numero, data = null, isFeriado = false, conteudo = '', objetivo = '', metodo = '') {
-        const row = document.createElement('tr');
-        row.setAttribute('draggable', 'true'); // [cite: 36]
-        if (isFeriado) row.classList.add('feriado');
-
-        const dataFormatada = data ? data.toISOString().split('T')[0] : '';
-
-        row.innerHTML = `
-            <td><input type="number" value="${numero || ''}" class="yaia-input input-aula" min="1" max="999"></td>
-            <td><input type="date" value="${dataFormatada}" class="yaia-input input-data" readonly></td> <td>
-                <div class="textarea-container">
-                    <textarea class="auto-expand input-conteudo">${isFeriado && !conteudo ? 'Feriado' : conteudo}</textarea> </div>
-            </td>
-            <td>
-                <div class="textarea-container">
-                    <textarea class="auto-expand input-objetivo" placeholder="Opcional">${objetivo}</textarea> </div>
-            </td>
-            <td>
-                <div class="textarea-container">
-                    <input type="text" class="yaia-input input-metodo" list="metodos-didaticos" value="${metodo}"> </div>
-            </td>
-            <td><button class="yaia-button yaia-danger remover-aula">Remover</button></td>
-        `;
-
-        tabelaBody.appendChild(row);
-
-        // Configurar eventos da linha
-      const inputMetodo = row.querySelector('.input-metodo');
-inputMetodo.addEventListener('change', function() {
-    const metodo = this.value.toLowerCase();
-    
-    // Destaque para avaliação
-    row.classList.toggle('avaliacao', metodo === 'avaliação' || metodo === 'avaliacao');
-    
-    // Destaque para trabalho de campo (novo)
-    row.classList.toggle('campo', 
-        metodo.includes('trabalho de campo') || 
-        metodo.includes('campo') ||
-        metodo.includes('visita técnica') || 
-        metodo.includes('saída de campo')
-    );
-    
-    salvarDadosLocal();
-});
-        
-        const inputConteudo = row.querySelector('.input-conteudo');
-    inputConteudo.addEventListener('input', function() {
-        const isFeriado = this.value.toLowerCase().includes('feriado');
-        row.classList.toggle('feriado', isFeriado);
-        salvarDadosLocal(); // Atualiza o salvamento automático
-    });
-        
-        
-        
-        // Verifica estado inicial do método para avaliação
-         row.classList.toggle('avaliacao', inputMetodo.value.toLowerCase() === 'avaliação' || inputMetodo.value.toLowerCase() === 'avaliacao');
-
-
-        row.querySelector('.remover-aula').addEventListener('click', function() { // [cite: 41]
-            row.remove();
-            renumeraAulas();
-            salvarDadosLocal(); // Salva após remover
-        });
-
-        // Event listener para salvar ao alterar qualquer input/textarea da linha
-        row.querySelectorAll('input:not(.input-data), textarea').forEach(el => { // Ignora input de data
-             el.addEventListener('change', salvarDadosLocal);
-             el.addEventListener('input', salvarDadosLocal); // Salva enquanto digita no textarea/input
-        });
-
-
-        // Prevenir arrastar ao interagir com elementos internos [cite: 42]
-        row.querySelectorAll('button').forEach(el => {
-            el.addEventListener('mousedown', (e) => e.stopPropagation());
-        });
-
-        // Ajustar altura dos textareas nesta linha
-        setupAutoExpand();
-
-        return row;
-    }
-
-    // Função para gerar as aulas na tabela com base nas datas e periodicidade
-async function gerarAulas(inicio, termino, periodicidade, pais) {
-    tabelaBody.innerHTML = '';
-    let aulaNum = 1;
-    
-    // Obter dias selecionados
-    const diasSelecionados = [];
-    document.querySelectorAll('input[name="weekday"]:checked').forEach(checkbox => {
-        diasSelecionados.push(parseInt(checkbox.value));
-    });
-
-    // Se nenhum dia selecionado, usa padrão (segunda a sexta)
-    const diasAula = diasSelecionados.length > 0 ? diasSelecionados : [1, 2, 3, 4, 5];
-    
-    let dataAtual = new Date(inicio);
-    dataAtual.setUTCHours(0, 0, 0, 0);
-    termino.setUTCHours(23, 59, 59, 999);
-
-    // Pré-busca feriados
-    const anoInicio = inicio.getFullYear();
-    const anoTermino = termino.getFullYear();
-    await getFeriadosAno(anoInicio, pais);
-    if (anoInicio !== anoTermino) {
-        await getFeriadosAno(anoTermino, pais);
-    }
-
-    while (dataAtual <= termino) {
-        // Verifica se o dia da semana está selecionado
-        const diaSemana = dataAtual.getDay(); // 0=Domingo, 1=Segunda, etc.
-        
-        if (diasAula.includes(diaSemana)) {
-            const isFeriado = await verificarFeriado(new Date(dataAtual), pais);
-            adicionarLinha(aulaNum, new Date(dataAtual), isFeriado);
-            aulaNum++;
-        }
-
-        // Avança para o próximo dia
-        dataAtual.setDate(dataAtual.getDate() + 1);
-        
-        // Se for quinzenal, pula uma semana após processar todos os dias selecionados
-        if (periodicidade === 'quinzenal' && dataAtual.getDay() === diasAula[0]) {
-            dataAtual.setDate(dataAtual.getDate() + 7);
-        }
-    }
-    
-    renumeraAulas();
+/* Reset e estilos base */
+body, html {
+    height: 100%;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--light);
+    color: var(--dark);
 }
-    // --- Lógica de Drag and Drop ---
-    function initDragAndDrop() {
-        tabelaBody.addEventListener('dragstart', function(e) { // [cite: 43]
-            if (e.target.tagName === 'TR') {
-                draggedRow = e.target;
-                // Usar setTimeout para garantir que a classe seja aplicada após o início do drag
-                setTimeout(() => e.target.classList.add('dragging'), 0);
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', null); // Necessário para Firefox
-                 document.body.classList.add('dragging-active'); // [cite: 44]
-            }
-        });
 
-        tabelaBody.addEventListener('dragover', function(e) { // [cite: 45]
-            e.preventDefault();
-            const targetRow = e.target.closest('tr');
-             if (!targetRow || targetRow === draggedRow || !draggedRow) return; // Sai se não for linha válida ou a mesma linha
-
-             // Limpa indicadores anteriores
-             document.querySelectorAll('.dropzone, .dropzone-bottom').forEach(el => {
-                    el.classList.remove('dropzone', 'dropzone-bottom');
-             }); // [cite: 46]
-
-
-            const rect = targetRow.getBoundingClientRect();
-            const midPoint = rect.top + rect.height / 2; //
-
-            if (e.clientY < midPoint) {
-                 targetRow.classList.add('dropzone'); // [cite: 47]
-             } else {
-                 targetRow.classList.add('dropzone-bottom'); // [cite: 48]
-            }
-             e.dataTransfer.dropEffect = 'move';
-        });
-
-        tabelaBody.addEventListener('dragleave', function(e) { // [cite: 49]
-             const relatedTarget = e.relatedTarget;
-            const targetRow = e.target.closest('tr');
-
-            // Remove o indicador apenas se o mouse saiu da linha ou de seus filhos diretos
-             if (targetRow && (!relatedTarget || !targetRow.contains(relatedTarget))) {
-                targetRow.classList.remove('dropzone', 'dropzone-bottom');
-            }
-        });
-
-        tabelaBody.addEventListener('drop', function(e) { // [cite: 50]
-            e.preventDefault();
-             if (!draggedRow) return;
-
-            const targetRow = e.target.closest('tr');
-             document.querySelectorAll('.dropzone, .dropzone-bottom').forEach(el => el.classList.remove('dropzone', 'dropzone-bottom')); // [cite: 51]
-
-
-             if (targetRow && targetRow !== draggedRow) {
-                 const rect = targetRow.getBoundingClientRect();
-                const midPoint = rect.top + rect.height / 2;
-                const shouldInsertBefore = e.clientY < midPoint; // [cite: 52]
-
-
-                if (shouldInsertBefore) {
-                    tabelaBody.insertBefore(draggedRow, targetRow); // [cite: 52]
-                } else {
-                    tabelaBody.insertBefore(draggedRow, targetRow.nextSibling); // [cite: 53]
-                }
-            }
-            // Sempre renumera e salva após o drop, mesmo que não mova para outra linha (caso raro)
-             renumeraAulas(); // [cite: 53]
-             salvarDadosLocal(); // Salva a nova ordem
-        });
-
-        tabelaBody.addEventListener('dragend', function() { // [cite: 54]
-             if (draggedRow) {
-                draggedRow.classList.remove('dragging'); // [cite: 51]
-            }
-             document.querySelectorAll('.dropzone, .dropzone-bottom').forEach(el => el.classList.remove('dropzone', 'dropzone-bottom')); //
-             document.body.classList.remove('dragging-active'); // [cite: 54]
-            draggedRow = null;
-        });
-    }
-
-    // --- Lógica de Salvamento e Carregamento Local ---
-
-    // Função para salvar os dados do formulário e da tabela no localStorage
-    function salvarDadosLocal() { // [cite: 104]
-        const dados = {
-            instituicao: instituicaoInput.value, // [cite: 104]
-            professor: professorInput.value, // [cite: 104]
-            disciplina: disciplinaInput.value, // [cite: 104]
-            turma: turmaInput.value, // [cite: 104]
-            dataInicio: dataInicioInput.value, // [cite: 104]
-            dataTermino: dataTerminoInput.value, // [cite: 104]
-            periodicidade: periodicidadeSelect.value, // [cite: 104]
-            pais: paisSelect.value, // [cite: 104]
-            ultimaModificacao: new Date().toISOString(), // Adiciona timestamp
-            aulas: [] // [cite: 104]
-        };
-
-        tabelaBody.querySelectorAll('tr').forEach(linha => {
-            const inputs = linha.querySelectorAll('input, textarea');
-            dados.aulas.push({
-                aula: inputs[0].value, // [cite: 105]
-                data: inputs[1].value, // Salva a data da linha [cite: 105]
-                conteudo: inputs[2].value, // [cite: 105]
-                objetivo: inputs[3].value, // [cite: 105]
-                metodo: inputs[4].value // [cite: 106]
-            });
-        });
-
-        try {
-            localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(dados)); // [cite: 106]
-            // console.log('Dados salvos localmente.'); // Opcional: feedback no console
-        } catch (error) {
-             console.error("Erro ao salvar no localStorage:", error);
-             alert("Não foi possível salvar os dados. O armazenamento local pode estar cheio ou indisponível.");
-        }
-    }
-
-     // Função para carregar dados salvos para os campos e a tabela (exceto datas da tabela)
-    function carregarConteudoSalvo(dados) {
-        // Preenche campos do formulário (exceto datas, pois a tabela foi gerada com as datas atuais)
-        instituicaoInput.value = dados.instituicao || ''; // [cite: 6]
-        professorInput.value = dados.professor || ''; // [cite: 7]
-        disciplinaInput.value = dados.disciplina || ''; // [cite: 7]
-        turmaInput.value = dados.turma || ''; // [cite: 7]
-        periodicidadeSelect.value = dados.periodicidade || 'semanal'; //
-        paisSelect.value = dados.pais || 'BR'; // [cite: 8]
-
-        // Preenche os conteúdos das aulas na tabela existente
-        const linhasTabela = tabelaBody.querySelectorAll('tr');
-        dados.aulas.forEach((aulaSalva, index) => {
-            if (linhasTabela[index]) { // Verifica se a linha correspondente existe
-                const linha = linhasTabela[index];
-                const inputs = linha.querySelectorAll('input, textarea');
-
-                // inputs[0] é o número da aula (já definido pela renumeração)
-                // inputs[1] é a data (não sobrescrever, usar a data da linha gerada)
-                inputs[2].value = aulaSalva.conteudo || ''; // Conteúdo [cite: 9]
-                inputs[3].value = aulaSalva.objetivo || ''; // Objetivo [cite: 9]
-                inputs[4].value = aulaSalva.metodo || ''; // Método
-
-                 // Aplica estilos se necessário
-                linha.classList.toggle('feriado', aulaSalva.conteudo.toLowerCase().includes('feriado') || linha.querySelector('.input-data').value === aulaSalva.data && isFeriadoOriginal); //
-                const metodoLower = aulaSalva.metodo.toLowerCase();
-                linha.classList.toggle('avaliacao', metodoLower === 'avaliação' || metodoLower === 'avaliacao');
-            }
-        });
-        setupAutoExpand(); // Reajusta altura dos textareas preenchidos
-        salvarDadosLocal(); // Salva os dados carregados como o estado atual
-        console.log('Conteúdos, métodos e objetivos carregados dos dados salvos.');
-    }
-
-
-    // --- Lógica de Exportação ---
-
-    // Exportar para PDF
-function exportToPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm'
-    });
-
-    // Função para formatar data no padrão BR (DD/MM/AAAA)
-    function formatarDataBR(dataString) {
-        if (!dataString) return '-';
-        try {
-            const [ano, mes, dia] = dataString.split('-');
-            return `${dia.padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`;
-        } catch (error) {
-            console.error('Erro ao formatar data:', error);
-            return dataString; // Retorna o original se falhar
-        }
-    }
-
-    // Configurações de estilo aprimoradas
-    const styles = {
-        header: {
-            fontSize: 18,
-            bold: true,
-            color: '#004d4d'
-        },
-        subheader: {
-            fontSize: 12,
-            color: '#555'
-        },
-        tableHeader: {
-            fillColor: '#004d4d', // Verde escuro igual ao cabeçalho da página
-            textColor: '#ffffff',
-            fontStyle: 'bold',
-            fontSize: 10,
-            halign: 'center',
-            valign: 'middle'
-        },
-        defaultStyle: {
-            textColor: '#000000',
-            fillColor: '#ffffff',
-            fontSize: 10
-        },
-        avaliacao: {
-            textColor: '#d32f2f',
-            fillColor: '#ffebee'
-        },
-        feriado: {
-            textColor: '#388e3c',
-            fillColor: '#e8f5e9'
-        },
-        campo: {
-            textColor: '#5d4037',
-            fillColor: '#efebe9'
-        },
-        alternateRow: {
-            fillColor: '#f5f5f5'
-        }
-    };
-
-    // Dados do cabeçalho
-    const instituicao = document.getElementById('instituicao').value || 'Instituição não informada';
-    const professor = document.getElementById('professor').value || 'Professor não informado';
-    const disciplina = document.getElementById('disciplina').value || 'Disciplina não informada';
-    const turma = document.getElementById('turma').value || 'Turma não informada';
-
-    // Adiciona cabeçalho ao PDF
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(styles.header.color);
-    doc.setFontSize(styles.header.fontSize);
-    doc.text(instituicao, 15, 20);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(styles.subheader.color);
-    doc.setFontSize(styles.subheader.fontSize);
-    doc.text(`Professor: ${professor}`, 15, 28);
-    doc.text(`Disciplina: ${disciplina} - ${turma}`, 15, 34);
-
-    // Configura colunas dinamicamente
-    const incluirObjetivo = document.getElementById('incluir-objetivo').checked;
-    const headers = ['Aula', 'Data', 'Conteúdo', 'Método'];
-    const columnStyles = {
-        0: { cellWidth: 15, halign: 'center' },
-        1: { cellWidth: 25, halign: 'center' },
-        2: { cellWidth: incluirObjetivo ? 40 : 70, halign: 'left' },
-        3: { cellWidth: 30, halign: 'left' }
-    };
-
-    if (incluirObjetivo) {
-        headers.splice(3, 0, 'Objetivo');
-        columnStyles[3] = { cellWidth: 40, halign: 'left' };
-        columnStyles[4] = { cellWidth: 30, halign: 'left' };
-    }
-
-    // Prepara os dados da tabela com datas formatadas
-    const rows = [];
-    document.querySelectorAll('#corpo-tabela tr').forEach(row => {
-        const cells = row.querySelectorAll('input, textarea');
-        let rowData = [
-            cells[0].value.trim() || '-',
-            formatarDataBR(cells[1].value.trim()), // Data formatada para BR
-            cells[2].value.trim() || '-'
-        ];
-        
-        if (incluirObjetivo) {
-            rowData.push(cells[3].value.trim() || '-');
-        }
-        
-        const metodo = cells[4].value.trim().toLowerCase() || '-';
-        rowData.push(metodo);
-
-        // Determina o estilo baseado no conteúdo
-        let rowStyle = styles.defaultStyle;
-        
-        if (row.classList.contains('avaliacao') || metodo.includes('avaliação') || metodo.includes('avaliacao')) {
-            rowStyle = { ...styles.defaultStyle, ...styles.avaliacao };
-        } 
-        else if (row.classList.contains('feriado') || rowData[2].toLowerCase().includes('feriado')) {
-            rowStyle = { ...styles.defaultStyle, ...styles.feriado };
-        }
-        else if (metodo.includes('campo') || metodo.includes('externo') || metodo.includes('saída')) {
-            rowStyle = { ...styles.defaultStyle, ...styles.campo };
-        }
-        
-        rows.push({
-            data: rowData,
-            style: rowStyle
-        });
-    });
-
-    // Configuração da tabela
-    doc.autoTable({
-        startY: 40,
-        head: [headers],
-        body: rows.map(row => row.data),
-        headStyles: styles.tableHeader,
-        styles: {
-            cellPadding: 3,
-            fontSize: 10,
-            valign: 'middle',
-            halign: 'left',
-            minCellHeight: 8
-        },
-        columnStyles: columnStyles,
-        willDrawCell: (data) => {
-            const row = rows[data.row.index];
-            if (row) {
-                doc.setTextColor(row.style.textColor);
-                doc.setFillColor(row.style.fillColor);
-            }
-        },
-        didParseCell: (data) => {
-            if (data.row.index >= 0 && rows[data.row.index]) {
-                data.cell.styles.fillColor = rows[data.row.index].style.fillColor;
-                if (data.row.index % 2 === 1 && 
-                    rows[data.row.index].style.fillColor === styles.defaultStyle.fillColor) {
-                    data.cell.styles.fillColor = styles.alternateRow.fillColor;
-                }
-            }
-        },
-        margin: { left: 15 },
-        tableLineColor: '#e0e0e0',
-        tableLineWidth: 0.1,
-        showHead: 'everyPage',
-        bodyLineColor: '#e0e0e0',
-        headLineColor: '#004d4d',
-        pageBreak: 'auto',
-        tableWidth: 'wrap'
-    });
-
-    // Data e hora da exportação no formato BR
-    const now = new Date();
-    const dia = String(now.getDate()).padStart(2, '0');
-    const mes = String(now.getMonth() + 1).padStart(2, '0');
-    const ano = now.getFullYear();
-    const hora = String(now.getHours()).padStart(2, '0');
-    const minutos = String(now.getMinutes()).padStart(2, '0');
-    
-    doc.setFontSize(8);
-    doc.setTextColor('#888');
-    doc.text(`Gerado em: ${dia}/${mes}/${ano} às ${hora}:${minutos}`, 15, doc.internal.pageSize.height - 10);
-
-    // Adiciona número de páginas
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor('#888');
-        doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.width - 25, doc.internal.pageSize.height - 10);
-    }
-
-    // Salva o PDF
-    const filename = `Cronograma_${disciplina.replace(/\s+/g, '_')}_${turma.replace(/\s+/g, '_')}.pdf`;
-    doc.save(filename);
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: white;
+    padding: 0;
 }
-    // Exportar para Excel (CSV)
-    function exportToExcel() { // [cite: 15]
-        const incluirObjetivo = incluirObjetivoCheckbox.checked;
-        let csv = incluirObjetivo ? 'Aula,Data,Conteúdo,Objetivo,Método\n' : 'Aula,Data,Conteúdo,Método\n'; // [cite: 15]
 
-        tabelaBody.querySelectorAll('tr').forEach(row => {
-            const cells = row.querySelectorAll('input, textarea');
-            let rowData = [
-                `"${cells[0].value.replace(/"/g, '""')}"`, // Aula [cite: 15]
-                `"${cells[1].value}"`, // Data (já formatada YYYY-MM-DD) [cite: 16]
-                `"${cells[2].value.replace(/"/g, '""')}"` // Conteúdo [cite: 16]
-            ];
+/* Cabeçalho Yaiah */
+header {
+    background-color: var(--header-bg);
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
 
-            if (incluirObjetivo) {
-                rowData.push(`"${cells[3].value.replace(/"/g, '""')}"`); // Objetivo [cite: 16]
-            }
+.logo {
+    height: 45px;
+}
 
-            rowData.push(`"${cells[4].value.replace(/"/g, '""')}"`); // Método [cite: 16]
-            csv += rowData.join(',') + '\n'; // [cite: 17]
-        });
+h1 {
+    color: white;
+    text-align: center;
+    margin: 0;
+    padding: 15px 0;
+    font-size: 1.5rem;
+}
 
-        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }); // Adiciona BOM para Excel entender UTF-8 [cite: 17]
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url; // [cite: 18]
-        link.setAttribute('download', `Cronograma_${new Date().toISOString().slice(0, 10)}.csv`); // [cite: 18]
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-         URL.revokeObjectURL(url); // Libera memória
+/* Navegação */
+nav {
+    background-color: var(--nav-bg);
+    padding: 10px;
+}
+
+nav ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+nav ul li {
+    margin: 0 15px;
+}
+
+nav ul li a {
+    color: white;
+    text-decoration: none;
+    font-size: 16px;
+    padding: 5px 0;
+    display: block;
+}
+
+nav ul li a:hover {
+    text-decoration: underline;
+}
+
+/* Controles */
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: var(--nav-bg);
+    color: white;
+    margin: 20px 0;
+}
+
+/* Estilos Yaia para o conteúdo principal */
+.yaia-card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+    margin: 20px;
+}
+
+.yaia-title {
+    color: var(--primary);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+}
+
+.yaia-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.yaia-form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.yaia-input {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.yaia-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(0, 77, 77, 0.2);
+}
+
+.yaia-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.yaia-select {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    background-color: white;
+}
+
+/* Botões */
+.yaia-button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.yaia-button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.yaia-primary {
+    background-color: var(--primary);
+    color: white;
+}
+
+.yaia-secondary {
+    background-color: white;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+}
+
+.yaia-success {
+    background-color: var(--success);
+    color: white;
+}
+
+.yaia-danger {
+    background-color: var(--danger);
+    color: white;
+}
+
+/* Tabela */
+.yaia-table-container {
+    margin: 2rem 0;
+    overflow-x: auto;
+}
+
+.yaia-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.yaia-table th, .yaia-table td {
+    border: 1px solid #e0e0e0;
+    padding: 8px;
+}
+
+.yaia-table th {
+    background-color: #004d4d;
+    color: white;
+}
+
+.yaia-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.yaia-table tr.feriado {
+    background-color: #e8f5e9;  !important;
+}
+
+.yaia-table tr.avaliacao {
+    background-color: #ffebee;  !important;
+}
+.textarea-container {
+    position: relative;
+    min-height: 40px;
+}
+
+.auto-expand {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    resize: none; /* Remover o redimensionamento manual */
+    overflow: hidden; /* Esconder a barra de rolagem inicial */
+}
+
+.auto-expand:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(0, 77, 77, 0.2);
+}
+
+/* Ajustes específicos para cada coluna */
+.input-conteudo, 
+.input-objetivo, 
+.input-metodo {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.input-metodo {
+    /* Estilo específico para o campo de método */
+    list-style-position: inside;
+}
+
+/* Ajuste para o campo de número */
+.input-aula {
+    width: 50px !important;
+    text-align: center;
+    padding: 8px;
+}
+
+/* Rodapé */
+footer {
+    background-color: var(--nav-bg);
+    color: white;
+    text-align: center;
+    padding: 10px;
+    margin-top: 20px;
+}
+/* ... (mantenha todos os estilos anteriores) ... */
+
+/* Ajustes específicos para as novas solicitações */
+.yaia-table th:first-child,
+.yaia-table td:first-child {
+    width: 60px; /* Largura fixa para coluna de número */
+}
+
+.input-aula {
+    width: 50px !important; /* Largura reduzida para campo de número */
+    text-align: center;
+}
+
+.input-metodo {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    list-style-position: inside;
+}
+
+.input-metodo:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(0, 77, 77, 0.2);
+}
+/* Responsividade */
+/* Estilos para o drag and drop */
+tr[draggable="true"] {
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+tr.dragging {
+    opacity: 0.5;
+    background-color: var(--accent);
+    border: 2px dashed var(--primary);
+}
+
+tr.dropzone {
+    border-top: 2px solid var(--primary);
+}
+
+/* Melhor visualização durante o arraste */
+body.dragging-active {
+    user-select: none;
+}
+
+body.dragging-active tr[draggable="true"] {
+    cursor: grabbing;
+}
+/* Estilos para drag and drop */
+tr[draggable="true"] {
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+tr.dragging {
+    opacity: 0.5;
+    background-color: #e0e0e0;
+    border: 2px dashed #004d4d;
+}
+
+tr.dropzone {
+    border-top: 2px solid #004d4d;
+}
+
+tr.dropzone-bottom {
+    border-bottom: 2px solid #004d4d;
+}
+
+body.dragging-active {
+    user-select: none;
+}
+
+body.dragging-active tr[draggable="true"] {
+    cursor: grabbing;
+}
+/* Loading state for the generate button */
+button:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+/* Holiday row styling */
+tr.feriado {
+    background-color: #e8f5e9 !important; /* Light green background */
+    position: relative;
+}
+
+tr.feriado::after {
+    content: 'Feriado';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #4caf50;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+tr.avaliacao {
+    background-color: #ffebee !important;
+    color: #d32f2f !important;
+}
+
+tr.feriado {
+    background-color: #e8f5e9 !important;
+    color: #388e3c !important;
+}
+
+tr.campo {
+    background-color: #efebe9 !important;
+    color: #5d4037 !important;
+}
+.export-options {
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+}
+
+.yaia-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.yaia-checkbox-label input {
+    width: 18px;
+    height: 18px;
+    accent-color: #004d4d;
+}
+
+.yaia-weekdays-control {
+    margin: 15px 0;
+}
+
+.yaia-weekdays-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.yaia-weekdays-options label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.yaia-weekdays-options input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+}
+
+@media (max-width: 768px) {
+    nav ul {
+        flex-direction: column;
+        align-items: center;
     }
-
-
-    // --- Event Listeners Principais ---
-
-    // Gerar Cronograma
-    btnGerar.addEventListener('click', async function() {
-        const dataInicioStr = dataInicioInput.value;
-        const dataTerminoStr = dataTerminoInput.value;
-        const periodicidade = periodicidadeSelect.value;
-        const pais = paisSelect.value;
-
-        // Validação básica das datas [cite: 1]
-        if (!dataInicioStr || !dataTerminoStr) {
-            alert('Informe as datas de início e término!');
-            return; // [cite: 1]
-        }
-
-        const dataInicio = new Date(dataInicioStr + 'T00:00:00'); // Garante que comece no início do dia local
-        const dataTermino = new Date(dataTerminoStr + 'T00:00:00'); // Garante que compare corretamente
-
-         if (isNaN(dataInicio.getTime()) || isNaN(dataTermino.getTime())) {
-             alert('Datas inválidas. Verifique o formato.');
-             return;
-        }
-
-        if (dataInicio > dataTermino) {
-            alert('A data de início não pode ser posterior à data de término.');
-            return;
-        }
-
-
-        // Estado de "carregando" [cite: 2]
-        this.disabled = true;
-        this.textContent = 'Gerando...';
-
-        try {
-            // 1. Gera a estrutura da tabela com as datas fornecidas
-            await gerarAulas(dataInicio, dataTermino, periodicidade, pais); //
-
-            // 2. Verifica se há dados salvos após gerar a estrutura
-            const dadosSalvosJSON = localStorage.getItem(LOCALSTORAGE_KEY); // [cite: 3]
-            if (dadosSalvosJSON) { // [cite: 4]
-                 const confirmacao = confirm('Dados salvos encontrados. Deseja carregar os conteúdos, métodos e objetivos salvos para este novo cronograma? (As datas serão mantidas as que você acabou de selecionar)'); // [cite: 4]
-                if (confirmacao) { // [cite: 5]
-                    const dadosSalvos = JSON.parse(dadosSalvosJSON);
-                     carregarConteudoSalvo(dadosSalvos); // Chama a função para carregar apenas o conteúdo
-                 } else {
-                     // Opcional: Se o usuário não quer carregar, talvez limpar os dados salvos?
-                     // localStorage.removeItem(LOCALSTORAGE_KEY);
-                     // alert('Ok, os dados salvos não foram carregados.');
-                 }
-             }
-             // 3. Salva o estado atual (com ou sem dados carregados)
-             salvarDadosLocal();
-
-        } catch (error) {
-            console.error('Erro ao gerar cronograma:', error); // [cite: 12]
-            alert('Erro ao gerar o cronograma. Verifique as datas ou o console para mais detalhes.'); // [cite: 13]
-        } finally {
-            // Restaura o botão
-            this.disabled = false;
-            this.textContent = 'Gerar Cronograma';
-        }
-    });
-
-    // Adicionar Aula Manualmente
-     btnAddAula.addEventListener('click', function() { // [cite: 63]
-         const ultimaLinha = tabelaBody.querySelector('tr:last-child');
-         let proximoNumero = 1;
-         let ultimaData = null;
-
-         if (ultimaLinha) {
-             proximoNumero = parseInt(ultimaLinha.querySelector('.input-aula').value || 0) + 1;
-             const ultimaDataStr = ultimaLinha.querySelector('.input-data').value;
-             if (ultimaDataStr) {
-                 ultimaData = new Date(ultimaDataStr + 'T00:00:00');
-                 // Adiciona 7 dias à última data como sugestão, se possível
-                 ultimaData.setDate(ultimaData.getDate() + 7);
-             }
-        }
-         // Adiciona a nova linha sem data pré-definida ou com a data sugerida
-        adicionarLinha(proximoNumero, ultimaData);
-         renumeraAulas(); // Garante renumeração
-         salvarDadosLocal(); // Salva após adicionar
-    });
-
-
-    // Exportar PDF
-    btnExportPDF.addEventListener('click', exportToPDF); // [cite: 103]
-
-    // Exportar Excel
-    btnExportExcel.addEventListener('click', exportToExcel); // [cite: 15]
-
-     // Salvar dados automaticamente em mudanças nos campos gerais
-     [instituicaoInput, professorInput, disciplinaInput, turmaInput, dataInicioInput, dataTerminoInput, periodicidadeSelect, paisSelect].forEach(el => {
-         el.addEventListener('change', salvarDadosLocal); // [cite: 107]
-     });
-
-     // Salvar ao marcar/desmarcar incluir objetivo (pode afetar exportação)
-     incluirObjetivoCheckbox.addEventListener('change', salvarDadosLocal);
-
-
-    // --- Inicialização ---
-    initDragAndDrop(); // [cite: 67]
-    setupAutoExpand(); // [cite: 67]
-
-     // Tenta carregar dados ao iniciar a página
-    function carregarAoIniciar() {
-        const dadosSalvosJSON = localStorage.getItem(LOCALSTORAGE_KEY);
-        if (dadosSalvosJSON) {
-            const dados = JSON.parse(dadosSalvosJSON);
-
-             // Verifica se os dados são muito antigos (ex: mais de 30 dias) - Opcional
-             const MAX_AGE_DAYS = 30;
-             const hoje = new Date();
-             const ultimaModificacao = dados.ultimaModificacao ? new Date(dados.ultimaModificacao) : null;
-             let carregar = true;
-
-            if (ultimaModificacao) {
-                const diffTime = Math.abs(hoje - ultimaModificacao);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays > MAX_AGE_DAYS) {
-                    // console.log('Dados salvos são antigos e não serão carregados automaticamente.');
-                    // localStorage.removeItem(LOCALSTORAGE_KEY); // Opcional: remove dados antigos
-                    // carregar = false; // Descomente para não carregar dados antigos
-                }
-            }
-
-
-            if (carregar) {
-                // Pergunta ao usuário se quer carregar os dados salvos COMPLETOS (incluindo datas)
-                 const confirmacao = confirm('Dados da última sessão encontrados. Deseja carregar o cronograma completo, incluindo as datas salvas?'); // [cite: 111]
-                if (confirmacao) { // [cite: 112]
-                    // Preenche TODOS os campos do formulário, incluindo datas
-                    instituicaoInput.value = dados.instituicao || ''; // [cite: 113]
-                    professorInput.value = dados.professor || ''; // [cite: 114]
-                    disciplinaInput.value = dados.disciplina || ''; // [cite: 114]
-                    turmaInput.value = dados.turma || ''; // [cite: 114]
-                    dataInicioInput.value = dados.dataInicio || ''; // [cite: 114]
-                    dataTerminoInput.value = dados.dataTermino || ''; // [cite: 115]
-                    periodicidadeSelect.value = dados.periodicidade || 'semanal'; // [cite: 115]
-                    paisSelect.value = dados.pais || 'BR'; // [cite: 115]
-
-                    // Limpa a tabela atual e recria com os dados salvos
-                    tabelaBody.innerHTML = '';
-                    dados.aulas.forEach(aula => {
-                         const dataAula = aula.data ? new Date(aula.data + 'T00:00:00') : null;
-                         // Precisamos verificar se era feriado na data original - idealmente salvar essa informação
-                         // Por simplicidade, vamos assumir que se o conteúdo é 'Feriado', era feriado.
-                         const isFeriado = aula.conteudo.toLowerCase().includes('feriado');
-                         adicionarLinha(aula.aula, dataAula, isFeriado, aula.conteudo, aula.objetivo, aula.metodo); //
-                    });
-                     renumeraAulas(); // Garante renumeração e contagem [cite: 121]
-                    console.log('Cronograma completo carregado da última sessão.');
-                } else {
-                    // O usuário não quis carregar, talvez limpar?
-                     // localStorage.removeItem(LOCALSTORAGE_KEY); // [cite: 112]
-                     // alert('Ok, iniciando um cronograma novo.');
-                      adicionarLinha(1); // Adiciona uma linha inicial vazia
-                      renumeraAulas();
-                }
-            } else {
-                  adicionarLinha(1); // Adiciona linha inicial se dados antigos não foram carregados
-                  renumeraAulas();
-            }
-        } else {
-             // Não há dados salvos, adiciona uma linha inicial vazia
-             adicionarLinha(1); // [cite: 67]
-             renumeraAulas();
-        }
+    
+    nav ul li {
+        margin: 5px 0;
     }
-
-    carregarAoIniciar(); // Chama a função para carregar ao iniciar
-
-}); // Fim do DOMContentLoaded
+    
+    .yaia-form-row {
+        flex-direction: column;
+    }
+    
+    .yaia-form-controls {
+        flex-direction: column;
+    }
+    
+    .yaia-export-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+}
